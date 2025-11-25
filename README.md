@@ -48,22 +48,28 @@ npm start
 `.env` 파일을 생성하여 기본 설정을 지정할 수 있습니다:
 
 ```env
-# Next.js 서버 URL (선택사항)
-# WEB_URL을 설정하면 API_URL이 자동으로 ${WEB_URL}/api/notifications로 설정됩니다
-WEB_URL=http://localhost:3000
+# Vercel 배포 환경
+WEB_URL=https://your-app.vercel.app
 
 # 또는 직접 API URL 설정
-# API_URL=http://localhost:3000/api/notifications
+# API_URL=https://your-app.vercel.app/api/notifications
 
-# 사용자 이메일 (권장)
-EMAIL=user@example.com
+# 개발 환경
+# WEB_URL=http://localhost:3000
+
+# 사용자 이메일 (권장, 설정 화면에서 입력하는 것이 더 안전)
+# EMAIL=user@example.com
 
 # 또는 사용자 ID (UUID)
 # USER_ID=32306f36-9e1d-4436-8b6c-745fdf6d1655
 
 # Electron 내부 서버 포트 (선택사항, 기본값: 3001)
-PORT=3001
+# PORT=3001
 ```
+
+**Vercel 배포 환경 설정:**
+- 자세한 내용은 [Vercel 설정 가이드](./VERCEL-SETUP.md)를 참고하세요
+- `.env.example` 파일을 복사하여 `.env` 파일을 만들 수 있습니다
 
 ## 사용 방법
 
