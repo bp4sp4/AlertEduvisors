@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alert Electron 설정</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.3s ease;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .form-group .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    .toggle-group label {
+      font-weight: 600;
+      color: #333;
+      margin: 0;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 26px;
+      background: #ccc;
+      border-radius: 13px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .toggle-switch.active {
+      background: #667eea;
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: left 0.3s ease;
+    }
+    .toggle-switch.active::after {
+      left: 27px;
+    }
+    .status-box {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    .status-box .status-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .status-box .status-item:last-child {
+      margin-bottom: 0;
+    }
+    .status-box .status-label {
+      color: #666;
+    }
+    .status-box .status-value {
+      color: #667eea;
+      font-weight: 600;
+      font-family: monospace;
+    }
+    .status-box .status-value.success {
+      color: #28a745;
+    }
+    .status-box .status-value.error {
+      color: #dc3545;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .info-box {
+      background: #e7f3ff;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .info-box p {
+      margin: 0;
+      color: #0c5460;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .warning-box p {
+      margin: 0;
+      color: #856404;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔔 Alert Electron 설정</h1>
+    <p class="subtitle">NMS 시스템 알림 연동 설정</p>
+    
+    <div class="info-box">
+      <p><strong>작동 방식:</strong> 이 앱은 Next.js API를 주기적으로 조회하여 새로운 알림을 받아 표시합니다.</p>
+    </div>
+
+    <div id="warning-box" class="warning-box" style="display: none;">
+      <p id="warning-text"></p>
+    </div>
+
+    <form id="config-form">
+      <div class="toggle-group">
+        <label>알림 활성화</label>
+        <div class="toggle-switch" id="enabled-toggle"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="api-url">API URL</label>
+        <input 
+          type="text" 
+          id="api-url" 
+          value="http://localhost:3000/api/notifications"
+          placeholder="http://localhost:3000/api/notifications"
+          readonly
+          style="background-color: #f5f5f5; cursor: not-allowed;"
+        >
+        <div class="help-text">Next.js 알림 API 엔드포인트 (자동 설정: http://localhost:3000/api/notifications)</div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">이메일 *</label>
+        <input 
+          type="email" 
+          id="email" 
+          placeholder="예: user@example.com"
+          required
+        >
+        <div class="help-text">
+          <strong>필수:</strong> 사용자 이메일 주소를 입력하세요<br>
+          업무협조, 상담 요청, 교육원 요청, 회의 알림을 받으려면 반드시 필요합니다
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="polling-interval">폴링 간격 (초)</label>
+        <input 
+          type="number" 
+          id="polling-interval" 
+          min="10" 
+          max="300" 
+          value="10"
+          required
+        >
+        <div class="help-text">권장: 10초 (10-300초)</div>
+      </div>
+
+      <div class="form-group">
+        <label for="notification-types">알림 타입</label>
+        <select id="notification-types">
+          <option value="all">모든 알림</option>
+          <option value="customer_edit">고객 수정 내역 (관리자)</option>
+          <option value="work_cooperation">업무협조 요청</option>
+          <option value="sales_consultation">상담 요청</option>
+          <option value="institution_request">교육원 요청</option>
+          <option value="meeting">회의 알림</option>
+        </select>
+        <div class="help-text">받을 알림 타입을 선택하세요</div>
+      </div>
+
+      <div class="status-box" id="status-box">
+        <div class="status-item">
+          <span class="status-label">현재 이메일:</span>
+          <span class="status-value" id="status-email">로딩 중...</span>
+        </div>
+        <div class="status-item">
+          <div class="status-label">알림 상태:</div>
+          <span class="status-value" id="status-enabled">로딩 중...</span>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-secondary" id="test-api-btn">API 연결 테스트</button>
+      <button type="button" class="btn btn-secondary" id="test-notification-btn">테스트 알림</button>
+      <button type="button" class="btn btn-secondary" id="clear-history-btn" style="background: #ff9800; color: white;">알림 히스토리 초기화</button>
+      <button type="submit" class="btn btn-primary">설정 저장</button>
+    </form>
+  </div>
+
+  <script>
+    // Electron API는 preload.js를 통해 노출됨
+    const ipcRenderer = {
+      invoke: (channel, ...args) => window.electronAPI.invoke(channel, ...args),
+      on: (channel, callback) => window.electronAPI.on(channel, callback),
+      removeListener: (channel, callback) => window.electronAPI.removeListener(channel, callback)
+    };
+
+    let config = {};
+    let enabledToggle = null;
+
+    // 설정 로드
+    async function loadConfig() {
+      try {
+        config = await ipcRenderer.invoke('get-config');
+        console.log('📥 설정 로드:', JSON.stringify(config, null, 2));
+        console.log('📧 로드된 이메일:', config.email || '(없음)', '타입:', typeof config.email);
+
+        // 폼에 설정 값 채우기
+        document.getElementById('api-url').value = config.apiUrl || 'http://localhost:3000/api/notifications';
+        document.getElementById('email').value = config.email || '';
+        document.getElementById('polling-interval').value = (config.pollingInterval || 10000) / 1000;
+        document.getElementById('notification-types').value = config.types || 'all';
+
+        // 토글 상태 설정
+        enabledToggle = document.getElementById('enabled-toggle');
+        if (config.enabled !== false) {
+          enabledToggle.classList.add('active');
+        } else {
+          enabledToggle.classList.remove('active');
+        }
+
+        // 상태 업데이트
+        updateStatus();
+      } catch (error) {
+        console.error('❌ 설정 로드 오류:', error);
+      }
+    }
+
+    // 상태 업데이트
+    function updateStatus() {
+      const emailStatus = document.getElementById('status-email');
+      const enabledStatus = document.getElementById('status-enabled');
+      const warningBox = document.getElementById('warning-box');
+      const warningText = document.getElementById('warning-text');
+
+      if (config.email && config.email.trim()) {
+        emailStatus.textContent = config.email;
+        emailStatus.className = 'status-value success';
+        warningBox.style.display = 'none';
+      } else {
+        emailStatus.textContent = '(설정되지 않음)';
+        emailStatus.className = 'status-value error';
+        warningBox.style.display = 'block';
+        warningText.textContent = '⚠️ 이메일이 설정되지 않았습니다. 업무협조, 상담, 교육원, 회의 알림을 받을 수 없습니다.';
+      }
+
+      if (config.enabled !== false) {
+        enabledStatus.textContent = '활성화됨';
+        enabledStatus.className = 'status-value success';
+      } else {
+        enabledStatus.textContent = '비활성화됨';
+        enabledStatus.className = 'status-value error';
+      }
+    }
+
+    // 이벤트 리스너 설정
+    function setupEventListeners() {
+      // 토글 클릭
+      enabledToggle = document.getElementById('enabled-toggle');
+      enabledToggle.addEventListener('click', async () => {
+        enabledToggle.classList.toggle('active');
+        const enabled = enabledToggle.classList.contains('active');
+        
+        console.log('🔄 토글 상태 변경:', enabled);
+        
+        const currentConfig = await ipcRenderer.invoke('get-config');
+        const newConfig = {
+          ...currentConfig,
+          enabled: enabled
+        };
+        
+        const result = await ipcRenderer.invoke('update-config', newConfig);
+        if (result.success) {
+          config = result.config;
+          updateStatus();
+        }
+      });
+
+      // 폼 제출
+      document.getElementById('config-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const saveBtn = document.querySelector('button[type="submit"]');
+        saveBtn.disabled = true;
+        saveBtn.textContent = '저장 중...';
+
+        try {
+          // 이메일 입력 필드에서 직접 값 가져오기
+          const rawEmailInput = document.getElementById('email');
+          const emailRawValue = rawEmailInput.value;
+          const emailTrimmedValue = emailRawValue.trim();
+          
+          console.log('--- 📧 Renderer 이메일 값 확인 (저장 직전) ---');
+          console.log('1. 필드 ID:', rawEmailInput.id);
+          console.log('2. 입력된 원본 값 (emailRawValue):', emailRawValue, `(길이: ${emailRawValue.length})`);
+          console.log('3. trim() 처리된 최종 값 (emailTrimmedValue):', emailTrimmedValue, `(길이: ${emailTrimmedValue.length})`);
+          console.log('-------------------------------------------');
+          
+          const enabled = enabledToggle.classList.contains('active');
+          const email = emailTrimmedValue;
+          const apiUrl = document.getElementById('api-url').value || 'http://localhost:3000/api/notifications';
+          const pollingInterval = parseInt(document.getElementById('polling-interval').value) * 1000;
+          const types = document.getElementById('notification-types').value;
+
+          console.log('💾 저장 시작:', {
+            email,
+            emailType: typeof email,
+            emailLength: email.length,
+            enabled,
+            apiUrl,
+            pollingInterval,
+            types
+          });
+
+          // 이메일 검증
+          if (!email) {
+            const confirm = window.confirm(
+              '⚠️ 이메일이 없습니다.\n' +
+              '업무협조, 상담, 교육원, 회의 알림을 받을 수 없습니다.\n' +
+              '계속하시겠습니까?'
+            );
+            if (!confirm) {
+              saveBtn.disabled = false;
+              saveBtn.textContent = '설정 저장';
+              return;
+            }
+          }
+
+          const newConfig = {
+            apiUrl: apiUrl,
+            email: email, // 빈 문자열도 허용
+            userId: '', // userId는 항상 빈 문자열
+            pollingInterval: pollingInterval,
+            types: types,
+            enabled: enabled
+          };
+
+          // IPC 호출 직전 newConfig 확인
+          console.log('4. 최종 newConfig.email:', email);
+          console.log('📤 저장할 설정:', JSON.stringify(newConfig, null, 2));
+          console.log('📤 이메일 필드 값 확인:', {
+            rawValue: document.getElementById('email').value,
+            trimmedValue: email,
+            length: email.length,
+            isEmpty: email.length === 0
+          });
+
+          const result = await ipcRenderer.invoke('update-config', newConfig);
+
+          if (result.success) {
+            console.log('✅ 저장 성공:', JSON.stringify(result.config, null, 2));
+            console.log('📧 저장된 이메일:', result.config?.email || '(없음)', '타입:', typeof result.config?.email);
+
+            // 저장된 설정으로 업데이트
+            config = result.config;
+
+            // 폼 필드 업데이트 (저장된 값으로)
+            document.getElementById('email').value = result.config.email || '';
+            document.getElementById('polling-interval').value = (result.config.pollingInterval || 10000) / 1000;
+            document.getElementById('notification-types').value = result.config.types || 'all';
+
+            // 토글 상태 업데이트
+            if (result.config.enabled !== false) {
+              enabledToggle.classList.add('active');
+            } else {
+              enabledToggle.classList.remove('active');
+            }
+
+            // 상태 업데이트
+            updateStatus();
+
+            // 성공 메시지
+            if (result.config.email && result.config.email.trim()) {
+              alert('✅ 설정이 저장되었습니다!');
+            } else {
+              alert('⚠️ 설정이 저장되었지만 이메일이 없습니다. 업무협조, 상담, 교육원, 회의 알림을 받을 수 없습니다.');
+            }
+          } else {
+            console.error('❌ 저장 실패:', result);
+            alert('❌ 설정 저장에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('❌ 저장 오류:', error);
+          alert('❌ 설정 저장 중 오류가 발생했습니다: ' + error.message);
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = '설정 저장';
+        }
+      });
+
+      // API 연결 테스트
+      document.getElementById('test-api-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('test-api-btn');
+        btn.disabled = true;
+        btn.textContent = '테스트 중...';
+
+        try {
+          // 현재 설정 확인
+          const currentConfig = await ipcRenderer.invoke('get-config');
+          console.log('🧪 테스트 전 설정 확인:', currentConfig);
+          
+          if (!currentConfig.email && !currentConfig.userId) {
+            alert('⚠️ 이메일이 설정되지 않았습니다.\n\n설정에서 이메일을 입력한 후 "설정 저장"을 클릭하세요.');
+            btn.disabled = false;
+            btn.textContent = 'API 연결 테스트';
+            return;
+          }
+          
+          const result = await ipcRenderer.invoke('test-api-connection');
+          console.log('🧪 테스트 결과:', result);
+          
+          if (result.success) {
+            let message = `✅ API 연결 성공!\n\n`;
+            message += `- 상태: ${result.status || 200}\n`;
+            message += `- 알림 개수: ${result.count || 0}개\n`;
+            if (result.data && result.data.last_checked) {
+              message += `- 마지막 확인: ${new Date(result.data.last_checked).toLocaleString()}`;
+            }
+            alert(message);
+          } else {
+            let message = `❌ API 연결 실패\n\n`;
+            message += `오류: ${result.message || '알 수 없는 오류'}\n`;
+            if (result.code) {
+              message += `코드: ${result.code}\n`;
+            }
+            if (result.status) {
+              message += `HTTP 상태: ${result.status}`;
+            }
+            message += `\n\n확인 사항:\n`;
+            message += `1. Next.js 서버가 실행 중인가요? (http://localhost:3000)\n`;
+            message += `2. 이메일이 올바르게 저장되었나요?\n`;
+            message += `3. API URL이 올바른가요? (${currentConfig.apiUrl})`;
+            alert(message);
+          }
+        } catch (error) {
+          console.error('❌ 테스트 오류:', error);
+          alert(`❌ 테스트 오류: ${error.message}`);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'API 연결 테스트';
+        }
+      });
+
+      // 테스트 알림
+      document.getElementById('test-notification-btn').addEventListener('click', async () => {
+        try {
+          await ipcRenderer.invoke('test-notification');
+        } catch (error) {
+          console.error('테스트 알림 오류:', error);
+        }
+      });
+
+      // 알림 히스토리 초기화
+      document.getElementById('clear-history-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('clear-history-btn');
+        const originalText = btn.textContent;
+        
+        if (!confirm('⚠️ 알림 히스토리를 초기화하시겠습니까?\n\n이렇게 하면:\n- 이미 확인한 알림이 다시 표시될 수 있습니다\n- last_checked가 초기화됩니다\n- 중복 방지 목록이 초기화됩니다')) {
+          return;
+        }
+        
+        btn.disabled = true;
+        btn.textContent = '초기화 중...';
+        
+        try {
+          const result = await ipcRenderer.invoke('clear-processed-notifications');
+          
+          if (result.success) {
+            alert(`✅ 알림 히스토리 초기화 완료!\n\n${result.clearedCount || 0}개의 알림 ID가 제거되었습니다.\n이제 모든 알림을 다시 확인할 수 있습니다.`);
+            console.log('✅ 알림 히스토리 초기화 성공:', result);
+          } else {
+            alert('❌ 초기화 실패');
+          }
+        } catch (error) {
+          console.error('❌ 초기화 오류:', error);
+          alert('❌ 초기화 중 오류가 발생했습니다: ' + error.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      });
+    }
+
+    // 초기화
+    loadConfig().then(() => {
+      setupEventListeners();
+    });
+  </script>
+</body>
+</html>
+

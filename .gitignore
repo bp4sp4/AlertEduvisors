@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+.env
+*.app
+*.dmg
+*.exe
+*.deb
+*.rpm
+
+# 아이콘 변환 중간 파일
+*.iconset/
+logo.iconset/
+
+# 설정 파일 (개인 정보 포함)
+config.json
