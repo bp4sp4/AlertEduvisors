@@ -45,8 +45,12 @@ jobs:
           fi
       
       - name: Build app
-        run: ${{ matrix.build-command }}
+        run: ${{ matrix.build-command }} --publish never
         env:
+          # Electron Builder의 게시(Publish)를 명시적으로 비활성화합니다.
+          ELECTRON_BUILDER_PUBLISH: never
+          
+          # 기타 환경 변수
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
           PUBLISH: never
