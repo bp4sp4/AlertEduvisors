@@ -45,11 +45,14 @@ jobs:
           fi
       
       - name: Build app
-        run: ${{ matrix.build-command }}
+        shell: bash
+        run: |
+          unset GH_TOKEN || true
+          export PUBLISH=never
+          ${{ matrix.build-command }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
-          PUBLISH: never
           GH_TOKEN: ""
       
       - name: Upload artifacts
