@@ -45,7 +45,21 @@ jobs:
           fi
       
       - name: Build app
-        run: ${{ matrix.build-command }} --publish never
+        shell: bash
+        run: |
+          # 환경 변수 설정으로 publish 완전 차단
+          export PUBLISH=never
+          export GH_TOKEN=""
+          export GITHUB_TOKEN=""
+          unset GH_TOKEN 2>/dev/null || true
+          unset GITHUB_TOKEN 2>/dev/null || true
+          
+          # 플랫폼별 빌드 실행
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            npx electron-builder --mac --publish never
+          else
+            npx electron-builder --win --publish never
+          fi
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
