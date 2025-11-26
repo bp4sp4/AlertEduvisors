@@ -1,3 +1,8 @@
+// 환경 변수 로드 (개발 환경)
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
 const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -18,7 +23,7 @@ function loadConfig() {
   
   // 기본 설정
   const defaultConfig = {
-    apiUrl: process.env.API_URL || (process.env.WEB_URL ? `${process.env.WEB_URL}/api/notifications` : 'https://nms-system.vercel.app/api/notifications'),
+    apiUrl: process.env.API_URL || (process.env.WEB_URL ? `${process.env.WEB_URL}/api/notifications` : 'http://localhost:3000/api/notifications'),
     userId: process.env.USER_ID || '',
     email: process.env.EMAIL || '',
     pollingInterval: 300000, // 5분 (300초, 기본값)
@@ -92,7 +97,7 @@ function saveConfig(config) {
     console.log('💾 처리된 userIdToSave:', userIdToSave, '타입:', typeof userIdToSave);
     
     const configToSave = {
-      apiUrl: config.apiUrl || 'https://nms-system.vercel.app/api/notifications',
+      apiUrl: config.apiUrl || 'http://localhost:3000/api/notifications',
       email: emailToSave,
       userId: userIdToSave,
       pollingInterval: config.pollingInterval || 10000,
@@ -366,19 +371,24 @@ async function fetchNotifications() {
       console.warn('⚠️ 업무협조, 상담, 교육원, 회의 알림을 받을 수 없습니다.');
     }
     
-    // repeatNotifications가 false일 때만 last_checked 사용 (중복 방지)
-    // repeatNotifications가 true이면 last_checked를 사용하지 않아 같은 알림이 계속 표시됨
-    // undefined나 true일 때는 last_checked를 사용하지 않음 (기본값: true)
-    const shouldRepeat = config.repeatNotifications !== false;
-    if (!shouldRepeat && lastChecked) {
-      params.append('last_checked', lastChecked);
-      console.log('🕐 last_checked 파라미터 추가 (중복 방지):', lastChecked);
-    } else {
-      console.log('🔄 repeatNotifications 활성화: last_checked 사용 안 함 (모든 알림 표시)');
-    }
+    // 모든 사용자: last_checked를 사용하지 않음 (모든 알림 계속 받기)
+    // processedNotificationIds로 중복 표시만 방지
+    console.log('🔄 모든 사용자: last_checked 사용 안 함 (모든 알림 계속 수신)');
+    // processedNotificationIds로 중복 표시만 방지
     
-    if (config.types && config.types !== 'all') {
+    // 마스터 어드민 체크 (types 파라미터 결정에 사용)
+    const userEmailForTypes = config.email?.trim().toLowerCase() || '';
+    const isMasterAdminByEmail = userEmailForTypes === 'masteradmin@nms.com' || 
+                                  userEmailForTypes.includes('masteradmin@nms.com') ||
+                                  (userEmailForTypes.includes('masteradmin') && userEmailForTypes.includes('@nms.com'));
+    
+    // 마스터 어드민은 types 파라미터를 사용하지 않음 (모든 알림 받기)
+    // 마스터 어드민이 아니고 types가 'all'이 아닐 때만 types 파라미터 추가
+    if (!isMasterAdminByEmail && config.types && config.types !== 'all') {
       params.append('types', config.types);
+      console.log('📋 알림 타입 필터링:', config.types);
+    } else if (isMasterAdminByEmail) {
+      console.log('👑 마스터 관리자: types 파라미터 무시 (모든 알림 수신)');
     }
 
     const url = `${config.apiUrl}?${params.toString()}`;
@@ -521,12 +531,49 @@ async function fetchNotifications() {
         console.log(`📬 마스터 관리자 알림 개수: ${notifications.length}개`);
         console.log(`📋 마스터 관리자 알림 타입:`, typeCountBefore);
         
-        // customer_edit 알림도 포함되어 있는지 확인
+        // 각 알림 타입별 개수 상세 확인
         const customerEditCount = notifications.filter(n => n.type === 'customer_edit').length;
-        if (customerEditCount > 0) {
-          console.log(`✅ 마스터 관리자: 데이터 수정 요청(customer_edit) 알림 ${customerEditCount}개 포함`);
+        const workCooperationCount = notifications.filter(n => n.type === 'work_cooperation').length;
+        const salesConsultationCount = notifications.filter(n => n.type === 'sales_consultation').length;
+        const institutionRequestCount = notifications.filter(n => n.type === 'institution_request').length;
+        const meetingCount = notifications.filter(n => n.type === 'meeting').length;
+        
+        console.log(`📊 마스터 관리자 알림 타입별 상세:`);
+        console.log(`  - customer_edit: ${customerEditCount}개`);
+        console.log(`  - work_cooperation: ${workCooperationCount}개`);
+        console.log(`  - sales_consultation: ${salesConsultationCount}개`);
+        console.log(`  - institution_request: ${institutionRequestCount}개`);
+        console.log(`  - meeting: ${meetingCount}개`);
+        
+        // 업무협조와 상담 알림 상세 확인
+        if (workCooperationCount > 0) {
+          const workCoopNotifications = notifications.filter(n => n.type === 'work_cooperation');
+          console.log(`🔍 업무협조 알림 상세 (${workCooperationCount}개):`);
+          workCoopNotifications.forEach((notif, index) => {
+            console.log(`  ${index + 1}. 업무협조:`, {
+              id: notif.id,
+              title: notif.title,
+              message: notif.message,
+              data: notif.data ? JSON.stringify(notif.data).substring(0, 200) : '(없음)'
+            });
+          });
         } else {
-          console.log(`ℹ️ 마스터 관리자: 데이터 수정 요청(customer_edit) 알림 없음 (API에서 반환하지 않음)`);
+          console.log(`⚠️ 업무협조 알림이 없습니다.`);
+        }
+        
+        if (salesConsultationCount > 0) {
+          const salesConsultNotifications = notifications.filter(n => n.type === 'sales_consultation');
+          console.log(`🔍 상담 알림 상세 (${salesConsultationCount}개):`);
+          salesConsultNotifications.forEach((notif, index) => {
+            console.log(`  ${index + 1}. 상담:`, {
+              id: notif.id,
+              title: notif.title,
+              message: notif.message,
+              data: notif.data ? JSON.stringify(notif.data).substring(0, 200) : '(없음)'
+            });
+          });
+        } else {
+          console.log(`⚠️ 상담 알림이 없습니다.`);
         }
         
         // 마스터 관리자는 모든 알림 표시 (API에서 이미 모든 알림을 반환)
@@ -611,15 +658,9 @@ async function fetchNotifications() {
         });
       });
       
-      // repeatNotifications가 false일 때만 last_checked 업데이트
-      // undefined나 true일 때는 업데이트하지 않음 (기본값: true)
-      const shouldRepeat = config.repeatNotifications !== false;
-      if (!shouldRepeat && response.data.last_checked) {
-        lastChecked = response.data.last_checked;
-        console.log('🕐 last_checked 업데이트:', lastChecked);
-      } else {
-        console.log('🔄 repeatNotifications 활성화: last_checked 업데이트 안 함');
-      }
+      // 모든 사용자: last_checked를 업데이트하지 않음 (모든 알림 계속 수신)
+      // processedNotificationIds로 중복 표시만 방지
+      console.log('🔄 모든 사용자: last_checked 업데이트 안 함 (모든 알림 계속 수신)');
       
       console.log('🔍 ===== fetchNotifications 완료 =====');
       return notifications;
@@ -729,17 +770,37 @@ async function checkNotifications() {
         isDuplicate: processedNotificationIds.has(notification.id)
       });
       
-      const shouldRepeat = config.repeatNotifications !== false;
-      if (!shouldRepeat) {
-        if (processedNotificationIds.has(notification.id)) {
-          console.log('⏭️ 중복 알림 건너뛰기:', notification.id);
-          return;
-        }
-        processedNotificationIds.add(notification.id);
-      }
+      // 알림 표시 (중복 체크 없음 - 모든 알림 계속 표시)
       
       try {
-        showNotification(notification.title, notification.message, {
+        // customer_edit 알림인 경우 변경된 필드 정보 추가
+        let notificationMessage = notification.message;
+        if (notification.type === 'customer_edit' && notification.data && notification.data.edited_fields) {
+          const editedFields = notification.data.edited_fields;
+          if (Array.isArray(editedFields) && editedFields.length > 0) {
+            // 필드명을 한글로 변환
+            const fieldNames = {
+              'customer_name': '고객명',
+              'contact': '연락처',
+              'institution': '기관',
+              'email': '이메일',
+              'address': '주소',
+              'memo': '메모',
+              'status': '상태',
+              'birth_date': '생년월일',
+              'gender': '성별',
+              'phone': '전화번호',
+              'mobile': '휴대폰',
+              'company': '회사명',
+              'position': '직책'
+            };
+            
+            const translatedFields = editedFields.map(field => fieldNames[field] || field);
+            notificationMessage = `${notification.message}\n변경된 필드: ${translatedFields.join(', ')}`;
+          }
+        }
+        
+        showNotification(notification.title, notificationMessage, {
           priority: notification.priority || 'normal',
           data: notification.data,
           icon: notification.icon
@@ -749,68 +810,63 @@ async function checkNotifications() {
         console.error('❌ 알림 표시 오류:', error);
       }
     } else {
-      // 알림이 여러 개면 하나로 합쳐서 표시
-      const notificationTypes = {};
-      notifications.forEach(notif => {
-        const type = notif.type;
-        if (!notificationTypes[type]) {
-          notificationTypes[type] = [];
+      // 알림이 여러 개면 개별적으로 바로 표시 (요약 알림 없음)
+      // 같은 배치 내에서만 중복 제거 (processedNotificationIds는 사용하지 않음)
+      const uniqueNotifications = [];
+      const seenIds = new Set();
+      notifications.forEach(notification => {
+        // 같은 배치 내에서 중복 제거만 수행
+        if (!seenIds.has(notification.id)) {
+          seenIds.add(notification.id);
+          uniqueNotifications.push(notification);
+        } else {
+          console.log('⏭️ 같은 배치 내 중복 알림 제외:', notification.id);
         }
-        notificationTypes[type].push(notif);
       });
       
-      // 타입별로 그룹화된 알림 메시지 생성
-      const typeMessages = [];
-      Object.keys(notificationTypes).forEach(type => {
-        const count = notificationTypes[type].length;
-        const typeNames = {
-          'meeting': '회의',
-          'sales_consultation': '상담',
-          'work_cooperation': '업무협조',
-          'institution_request': '교육원 요청',
-          'customer_edit': '고객 수정'
-        };
-        const typeName = typeNames[type] || type;
-        typeMessages.push(`${typeName} ${count}개`);
-      });
+      console.log(`📊 같은 배치 내 중복 제거 후 알림 개수: ${notifications.length}개 → ${uniqueNotifications.length}개`);
       
-      const summaryTitle = `${notifications.length}개의 새 알림`;
-      const summaryBody = typeMessages.join(', ');
-      
-      console.log(`📋 알림 요약: ${summaryTitle} - ${summaryBody}`);
-      
-      // 요약 알림 표시
-      try {
-        showNotification(summaryTitle, summaryBody, {
-          priority: 'high', // 중요도 높게 설정하여 더 오래 표시
-          data: { notifications: notifications }
-        });
-        console.log('✅ 요약 알림 표시 완료');
-      } catch (error) {
-        console.error('❌ 요약 알림 표시 오류:', error);
-      }
-      
-      // 각 알림도 개별적으로 표시 (딜레이를 두고 순차적으로)
-      // 요약 알림 후 3초 대기 후 첫 번째 알림 표시, 이후 각 알림 사이에 4초 간격
-      notifications.forEach((notification, index) => {
-        setTimeout(() => {
-          console.log(`\n🔔 알림 ${index + 1}/${notifications.length} 처리 중:`, {
+      if (uniqueNotifications.length === 0) {
+        console.log('⚠️ 개별 알림이 없습니다. 같은 배치 내 중복만 제거되었습니다.');
+      } else {
+        console.log(`📋 개별 알림 표시: ${uniqueNotifications.length}개`);
+        // 각 알림을 개별적으로 바로 표시 (딜레이 없음)
+        uniqueNotifications.forEach((notification, index) => {
+          console.log(`\n🔔 알림 ${index + 1}/${uniqueNotifications.length} 처리 중:`, {
             id: notification.id,
             type: notification.type,
             title: notification.title
           });
           
-          const shouldRepeat = config.repeatNotifications !== false;
-          if (!shouldRepeat) {
-            if (processedNotificationIds.has(notification.id)) {
-              console.log('⏭️ 중복 알림 건너뛰기:', notification.id);
-              return;
-            }
-            processedNotificationIds.add(notification.id);
-          }
-          
           try {
-            showNotification(notification.title, notification.message, {
+            // customer_edit 알림인 경우 변경된 필드 정보 추가
+            let notificationMessage = notification.message;
+            if (notification.type === 'customer_edit' && notification.data && notification.data.edited_fields) {
+              const editedFields = notification.data.edited_fields;
+              if (Array.isArray(editedFields) && editedFields.length > 0) {
+                // 필드명을 한글로 변환
+                const fieldNames = {
+                  'customer_name': '고객명',
+                  'contact': '연락처',
+                  'institution': '기관',
+                  'email': '이메일',
+                  'address': '주소',
+                  'memo': '메모',
+                  'status': '상태',
+                  'birth_date': '생년월일',
+                  'gender': '성별',
+                  'phone': '전화번호',
+                  'mobile': '휴대폰',
+                  'company': '회사명',
+                  'position': '직책'
+                };
+                
+                const translatedFields = editedFields.map(field => fieldNames[field] || field);
+                notificationMessage = `${notification.message}\n변경된 필드: ${translatedFields.join(', ')}`;
+              }
+            }
+            
+            showNotification(notification.title, notificationMessage, {
               priority: notification.priority || 'normal',
               data: notification.data,
               icon: notification.icon
@@ -819,8 +875,8 @@ async function checkNotifications() {
           } catch (error) {
             console.error('❌ 알림 표시 오류:', error);
           }
-        }, 3000 + (index * 4000)); // 요약 알림 후 3초 대기, 이후 각 알림 사이에 4초 간격
-      });
+        });
+      }
     }
     
     console.log('🔔 알림 처리 완료\n');
@@ -932,6 +988,40 @@ ipcMain.handle('update-config', (event, newConfig) => {
     success: true, 
     config: config 
   };
+});
+
+
+// 마스터 관리자 비밀번호 검증
+// 환경 변수에서 비밀번호를 가져옵니다 (기본값: nms2024admin!)
+// .env 파일에 MASTER_ADMIN_PASSWORD를 설정하거나 시스템 환경 변수로 설정하세요
+const MASTER_ADMIN_PASSWORD = process.env.MASTER_ADMIN_PASSWORD || 'nms2024admin!'; 
+
+ipcMain.handle('verify-admin-password', (event, password) => {
+  console.log('🔒 마스터 관리자 비밀번호 검증 시도');
+  
+  if (!password || typeof password !== 'string') {
+    console.log('❌ 비밀번호 검증 실패: 비밀번호가 없거나 잘못된 형식');
+    return {
+      success: false,
+      message: '비밀번호를 입력하세요.'
+    };
+  }
+
+  const isCorrect = password.trim() === MASTER_ADMIN_PASSWORD;
+  
+  if (isCorrect) {
+    console.log('✅ 마스터 관리자 비밀번호 검증 성공');
+    return {
+      success: true,
+      message: '인증되었습니다.'
+    };
+  } else {
+    console.log('❌ 마스터 관리자 비밀번호 검증 실패: 잘못된 비밀번호');
+    return {
+      success: false,
+      message: '비밀번호가 올바르지 않습니다.'
+    };
+  }
 });
 
 ipcMain.handle('test-notification', () => {
@@ -1064,13 +1154,8 @@ ipcMain.handle('clear-processed-notifications', () => {
   console.log(`  - last_checked 초기화 (이전: ${oldLastChecked || '없음'})`);
   console.log('🔄 ===== 알림 히스토리 초기화 완료 =====');
   
-  // 초기화 후 즉시 알림 확인 (모든 알림을 다시 확인)
-  if (config.enabled) {
-    console.log('🚀 초기화 후 즉시 알림 확인 시작...');
-    setTimeout(() => {
-      checkNotifications();
-    }, 1000); // 1초 후 실행
-  }
+  // 초기화 후에는 알림 확인하지 않음 (설정 저장 버튼을 눌러야 폴링 시작)
+  console.log('ℹ️ 알림 히스토리만 초기화되었습니다. 설정 저장 버튼을 눌러야 알림 폴링이 시작됩니다.');
   
   return { 
     success: true,
@@ -1178,7 +1263,8 @@ app.whenReady().then(() => {
   
   createTray();
   startServer(); // HTTP 서버 시작
-  startPolling(); // 알림 폴링 시작
+  // 알림 폴링은 설정 저장 버튼을 눌렀을 때만 시작됨
+  console.log('ℹ️ 알림 폴링은 설정 저장 버튼을 눌러야 시작됩니다.');
 
   app.on('activate', () => {
     // macOS에서 독 아이콘 클릭 시

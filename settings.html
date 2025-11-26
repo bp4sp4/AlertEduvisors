@@ -254,6 +254,99 @@
     .modal-body li {
       margin-bottom: 10px;
     }
+    .password-modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+    .password-modal-content {
+      background-color: white;
+      margin: 15% auto;
+      padding: 40px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 6px 30px rgba(0, 0, 0, 0.4);
+    }
+    .password-modal-header {
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    .password-modal-header h2 {
+      margin: 0;
+      font-size: 26px;
+      color: #d32f2f;
+      font-weight: bold;
+    }
+    .password-modal-body {
+      margin-bottom: 25px;
+    }
+    .password-modal-body p {
+      font-size: 16px;
+      color: #333;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .password-input-group {
+      margin-bottom: 20px;
+    }
+    .password-input-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+    .password-input-group input {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    .password-input-group input:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+    .password-modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .password-modal-actions button {
+      padding: 12px 28px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .password-modal-actions .btn-cancel {
+      background-color: #6c757d;
+      color: white;
+    }
+    .password-modal-actions .btn-cancel:hover {
+      background-color: #5a6268;
+    }
+    .password-modal-actions .btn-confirm {
+      background-color: #007bff;
+      color: white;
+    }
+    .password-modal-actions .btn-confirm:hover {
+      background-color: #0056b3;
+    }
+    .password-error {
+      color: #d32f2f;
+      font-size: 14px;
+      margin-top: 8px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -338,6 +431,32 @@
 
       <button type="submit" class="btn btn-primary">설정 저장</button>
     </form>
+
+    <!-- 비밀번호 검증 모달 -->
+    <div id="password-modal" class="password-modal">
+      <div class="password-modal-content">
+        <div class="password-modal-header">
+          <h2>🔒 관리자 인증 필요</h2>
+        </div>
+        <div class="password-modal-body">
+          <p><strong>마스터 관리자 이메일</strong>을 설정하려면 비밀번호가 필요합니다.</p>
+          <div class="password-input-group">
+            <label for="admin-password">비밀번호</label>
+            <input 
+              type="password" 
+              id="admin-password" 
+              placeholder="비밀번호를 입력하세요"
+              autocomplete="off"
+            >
+            <div id="password-error" class="password-error">비밀번호가 올바르지 않습니다.</div>
+          </div>
+        </div>
+        <div class="password-modal-actions">
+          <button type="button" class="btn-cancel" id="password-cancel-btn">취소</button>
+          <button type="button" class="btn-confirm" id="password-confirm-btn">확인</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 사용법 팝업 모달 -->
     <div id="help-modal" class="modal">
@@ -474,7 +593,7 @@
           const enabled = enabledToggle.classList.contains('active');
           const email = emailTrimmedValue;
           // API URL은 고정값 사용 (사용자 변경 불가)
-          const apiUrl = 'https://nms-system.vercel.app/api/notifications';
+          const apiUrl = 'http://localhost:3000/api/notifications';
           const pollingInterval = parseInt(document.getElementById('polling-interval').value) * 1000;
           const types = document.getElementById('notification-types').value;
 
@@ -487,6 +606,20 @@
             pollingInterval,
             types
           });
+
+          // 마스터 관리자 이메일 검증
+          const isMasterAdminEmail = email.toLowerCase().trim() === 'masteradmin@nms.com';
+          if (isMasterAdminEmail) {
+            // 비밀번호 검증 필요
+            const passwordVerified = await verifyAdminPassword();
+            if (!passwordVerified) {
+              // 비밀번호 검증 실패 - 이메일 필드 초기화
+              document.getElementById('email').value = config.email || '';
+              saveBtn.disabled = false;
+              saveBtn.textContent = '설정 저장';
+              return;
+            }
+          }
 
           // 이메일 검증
           if (!email) {
@@ -578,6 +711,83 @@
     closeModal.addEventListener('click', () => {
       helpModal.style.display = 'none';
     });
+
+    // 비밀번호 검증 모달
+    const passwordModal = document.getElementById('password-modal');
+    const passwordInput = document.getElementById('admin-password');
+    const passwordError = document.getElementById('password-error');
+    const passwordCancelBtn = document.getElementById('password-cancel-btn');
+    const passwordConfirmBtn = document.getElementById('password-confirm-btn');
+
+    // 비밀번호 검증 함수
+    function verifyAdminPassword() {
+      return new Promise((resolve) => {
+        // 모달 표시
+        passwordModal.style.display = 'block';
+        passwordInput.value = '';
+        passwordError.style.display = 'none';
+        passwordInput.focus();
+
+        // 취소 버튼
+        const handleCancel = () => {
+          passwordModal.style.display = 'none';
+          passwordInput.value = '';
+          passwordError.style.display = 'none';
+          passwordConfirmBtn.removeEventListener('click', handleConfirm);
+          passwordCancelBtn.removeEventListener('click', handleCancel);
+          passwordInput.removeEventListener('keypress', handleEnter);
+          resolve(false);
+        };
+
+        // 확인 버튼
+        const handleConfirm = async () => {
+          const password = passwordInput.value.trim();
+          
+          if (!password) {
+            passwordError.style.display = 'block';
+            passwordError.textContent = '비밀번호를 입력하세요.';
+            return;
+          }
+
+          try {
+            // IPC로 비밀번호 검증
+            const result = await window.electronAPI.invoke('verify-admin-password', password);
+            
+            if (result.success) {
+              passwordModal.style.display = 'none';
+              passwordInput.value = '';
+              passwordError.style.display = 'none';
+              passwordConfirmBtn.removeEventListener('click', handleConfirm);
+              passwordCancelBtn.removeEventListener('click', handleCancel);
+              passwordInput.removeEventListener('keypress', handleEnter);
+              resolve(true);
+            } else {
+              passwordError.style.display = 'block';
+              passwordError.textContent = result.message || '비밀번호가 올바르지 않습니다.';
+              passwordInput.value = '';
+              passwordInput.focus();
+            }
+          } catch (error) {
+            console.error('비밀번호 검증 오류:', error);
+            passwordError.style.display = 'block';
+            passwordError.textContent = '검증 중 오류가 발생했습니다.';
+            passwordInput.value = '';
+            passwordInput.focus();
+          }
+        };
+
+        // Enter 키 처리
+        const handleEnter = (e) => {
+          if (e.key === 'Enter') {
+            handleConfirm();
+          }
+        };
+
+        passwordConfirmBtn.addEventListener('click', handleConfirm);
+        passwordCancelBtn.addEventListener('click', handleCancel);
+        passwordInput.addEventListener('keypress', handleEnter);
+      });
+    }
 
     window.addEventListener('click', (event) => {
       if (event.target === helpModal) {
