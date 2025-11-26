@@ -47,4 +47,3 @@ jobs:
           name: dist-${{ matrix.os }}
           path: dist/
           retention-days: 30
-
