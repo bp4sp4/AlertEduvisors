@@ -45,7 +45,7 @@ jobs:
           fi
       
       - name: Build app
-        run: ${{ matrix.build-command }}
+        run: ${{ matrix.build-command }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
