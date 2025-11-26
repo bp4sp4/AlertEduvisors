@@ -21,7 +21,7 @@ function loadConfig() {
     apiUrl: process.env.API_URL || (process.env.WEB_URL ? `${process.env.WEB_URL}/api/notifications` : 'https://nms-system.vercel.app/api/notifications'),
     userId: process.env.USER_ID || '',
     email: process.env.EMAIL || '',
-    pollingInterval: 10000, // 10초 (기본값)
+    pollingInterval: 300000, // 5분 (300초, 기본값)
     types: 'all', // all, customer_edit, work_cooperation, sales_consultation, institution_request, meeting
     enabled: true,
     repeatNotifications: true // 같은 알림을 계속 표시할지 여부 (기본: true)
@@ -156,15 +156,14 @@ function createSettingsWindow() {
   const windowIcon = fs.existsSync(iconPath) ? iconPath : undefined;
   
   mainWindow = new BrowserWindow({
-    width: 600,
-    height: 500,
+    width: 800,
+    height: 700,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
       preload: path.join(__dirname, 'preload.js'),
-      // 개발자 도구 콘솔 오류 필터링 (선택사항)
-      devTools: true
+      devTools: false // 개발자 도구 비활성화
     },
     icon: windowIcon,
     show: false
@@ -180,26 +179,6 @@ function createSettingsWindow() {
   });
 
   mainWindow.loadFile('settings.html');
-
-  // 개발자 도구 열기 - 항상 자동으로 열리도록
-  mainWindow.webContents.on('did-finish-load', () => {
-    // 설정 창이 로드되면 자동으로 개발자 도구 열기
-    mainWindow.webContents.openDevTools();
-    console.log('✅ 개발자 도구 자동으로 열림');
-  });
-
-  // F12 키로 개발자 도구 열기/닫기
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'F12') {
-      event.preventDefault();
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools();
-      } else {
-        mainWindow.webContents.openDevTools();
-      }
-    }
-  });
-
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -245,26 +224,6 @@ function createTray() {
       label: '설정',
       click: () => {
         createSettingsWindow();
-      }
-    },
-    {
-      label: '개발자 도구',
-      click: () => {
-        if (mainWindow) {
-          if (mainWindow.webContents.isDevToolsOpened()) {
-            mainWindow.webContents.closeDevTools();
-          } else {
-            mainWindow.webContents.openDevTools();
-          }
-        } else {
-          createSettingsWindow();
-          // 창이 열린 후 개발자 도구 열기
-          setTimeout(() => {
-            if (mainWindow) {
-              mainWindow.webContents.openDevTools();
-            }
-          }, 500);
-        }
       }
     },
     {
@@ -320,16 +279,30 @@ function showNotification(title, body, options = {}) {
       urgency: urgency
     });
     
-    const notification = new Notification({
+    // 알림 옵션 설정
+    const notificationOptions = {
       title: title,
       body: body,
       icon: notificationIcon,
       silent: options.silent || false,
-      urgency: urgency
-    });
+      urgency: urgency // 'critical'로 설정하면 알림이 더 오래 지속됨
+    };
+    
+    // macOS에서 추가 옵션: hasReply를 사용하면 알림이 더 오래 지속될 수 있음
+    if (process.platform === 'darwin' && urgency === 'critical') {
+      notificationOptions.hasReply = false; // 답장 기능은 사용하지 않지만, critical urgency로 지속 시간 증가
+    }
+    
+    console.log('🔔 Notification 옵션:', notificationOptions);
+    
+    const notification = new Notification(notificationOptions);
 
     notification.on('click', () => {
       console.log('🔔 알림 클릭됨:', title);
+      // 알림 클릭 시 닫기
+      notification.close();
+      console.log('✅ 알림 닫힘 (사용자 클릭)');
+      
       if (mainWindow) {
         mainWindow.show();
         mainWindow.focus();
@@ -434,15 +407,22 @@ async function fetchNotifications() {
       success: response.data?.success,
       count: response.data?.notifications?.length || 0,
       hasNotifications: !!response.data?.notifications,
-      notificationsType: Array.isArray(response.data?.notifications) ? 'array' : typeof response.data?.notifications
+      notificationsType: Array.isArray(response.data?.notifications) ? 'array' : typeof response.data?.notifications,
+      hasUser: !!response.data?.user,
+      isSuperAdmin: response.data?.user?.is_super_admin
     });
-
+    
     // 응답 데이터 상세 로그
     if (response.data) {
       console.log('📦 API 응답 데이터 구조:', {
         success: response.data.success,
         notificationsLength: response.data.notifications?.length || 0,
         lastChecked: response.data.last_checked,
+        user: response.data.user ? {
+          id: response.data.user.id,
+          email: response.data.user.email,
+          is_super_admin: response.data.user.is_super_admin
+        } : '없음',
         notifications: response.data.notifications ? response.data.notifications.map(n => ({
           id: n.id,
           type: n.type,
@@ -450,46 +430,162 @@ async function fetchNotifications() {
           message: n.message?.substring(0, 50) + '...'
         })) : '없음'
       });
+      
+      // ⚠️ 중요: API 응답에 회의 알림이 있는지 확인
+      if (response.data.notifications && Array.isArray(response.data.notifications)) {
+        const meetingCount = response.data.notifications.filter(n => n.type === 'meeting').length;
+        const allTypes = [...new Set(response.data.notifications.map(n => n.type))];
+        console.log(`🔍 API 응답 알림 타입 분석:`, {
+          총알림개수: response.data.notifications.length,
+          회의알림개수: meetingCount,
+          모든알림타입: allTypes,
+          회의알림있음: meetingCount > 0 ? '예' : '아니오'
+        });
+        
+        if (meetingCount === 0) {
+          console.warn(`⚠️ API 응답에 회의 알림이 없습니다!`);
+          console.warn(`⚠️ 이는 API 서버 측 문제일 수 있습니다.`);
+          console.warn(`⚠️ API 서버에서 회의 알림을 반환하지 않고 있습니다.`);
+        }
+      }
     }
 
     if (response.data && response.data.success && response.data.notifications) {
       let notifications = response.data.notifications;
       console.log(`📬 받은 알림 개수 (필터링 전): ${notifications.length}개`);
       
+      // API 응답 전체 확인 (디버깅)
+      console.log(`🔍 API 응답 전체:`, JSON.stringify(response.data, null, 2));
+      
       // 알림 객체 구조 디버깅 (첫 번째 알림만)
       if (notifications.length > 0) {
         console.log('🔍 알림 객체 구조 샘플:', JSON.stringify(notifications[0], null, 2));
       }
       
-      // ⚠️ 중요: API가 이미 email 파라미터로 필터링하고 있다고 가정
-      // 따라서 API가 반환한 알림은 모두 해당 이메일의 알림입니다
-      // 단, customer_edit 타입은 관리자용이므로 제외
-      if (config.email && config.email.trim()) {
-        const userEmail = config.email.trim().toLowerCase();
-        console.log(`🔍 필터링 시작 - 내 이메일: ${userEmail}`);
-        console.log(`ℹ️ API가 이미 email 파라미터로 필터링했으므로, 반환된 알림은 모두 내 알림입니다.`);
-        console.log(`ℹ️ 단, customer_edit 타입은 관리자용이므로 제외합니다.`);
+      // 회의 알림만 필터링해서 확인
+      const meetingOnly = notifications.filter(n => n.type === 'meeting');
+      console.log(`🔍 회의 알림만 (API 응답에서):`, meetingOnly.length > 0 ? meetingOnly : '없음');
+      
+      // API에서 받은 사용자 정보 확인
+      const isSuperAdminFromAPI = response.data.user?.is_super_admin === true;
+      const userEmail = config.email?.trim().toLowerCase() || '';
+      
+      // 마스터 어드민 이메일 체크 (백업 방법)
+      const isMasterAdminByEmail = userEmail === 'masteradmin@nms.com' || 
+                                    userEmail.includes('masteradmin@nms.com') ||
+                                    (userEmail.includes('masteradmin') && userEmail.includes('@nms.com'));
+      
+      // 마스터 어드민 여부 (API 응답 또는 이메일 체크)
+      const isMasterAdmin = isSuperAdminFromAPI || isMasterAdminByEmail;
+      
+      console.log(`🔍 ===== 사용자 정보 확인 =====`);
+      console.log(`📧 사용자 이메일: ${userEmail || '(없음)'}`);
+      console.log(`👑 API 응답 - 마스터 관리자: ${isSuperAdminFromAPI ? '예' : '아니오'}`);
+      console.log(`👑 이메일 기반 - 마스터 관리자: ${isMasterAdminByEmail ? '예' : '아니오'}`);
+      console.log(`👑 최종 - 마스터 관리자: ${isMasterAdmin ? '예' : '아니오'}`);
+      console.log(`📬 받은 알림 개수: ${notifications.length}개`);
+      
+      // ⚠️ 클라이언트 측 필터링
+      // API에서 이미 사용자별로 필터링된 알림을 받으므로,
+      // 클라이언트에서 추가 필터링할 필요 없음
+      // (상담, 업무협조, 교육원, 회의 등 모든 알림은 API에서 이미 필터링됨)
+      
+      // 알림 타입별 개수 확인 (디버깅)
+      const typeCountBefore = {};
+      notifications.forEach(notif => {
+        typeCountBefore[notif.type] = (typeCountBefore[notif.type] || 0) + 1;
+      });
+      console.log(`📋 알림 타입별 개수 (필터링 전):`, typeCountBefore);
+      
+      // 회의 알림 상세 확인 (디버깅)
+      const meetingNotifications = notifications.filter(n => n.type === 'meeting');
+      if (meetingNotifications.length > 0) {
+        console.log(`🔍 회의 알림 상세 (${meetingNotifications.length}개):`);
+        meetingNotifications.forEach((notif, index) => {
+          console.log(`  ${index + 1}. 회의 알림:`, {
+            id: notif.id,
+            title: notif.title,
+            message: notif.message,
+            data: notif.data ? JSON.stringify(notif.data).substring(0, 200) : '(없음)',
+            timestamp: notif.timestamp
+          });
+        });
+      } else {
+        console.log(`⚠️ 회의 알림이 없습니다.`);
+      }
+      
+      // customer_edit 타입만 일반 사용자에게서 제외 (선택적)
+      // 마스터 어드민은 모든 알림 표시 (필터링 없음)
+      if (isMasterAdmin) {
+        console.log(`👑 마스터 관리자: 모든 알림 표시 (필터링 없음)`);
+        console.log(`📬 마스터 관리자 알림 개수: ${notifications.length}개`);
+        console.log(`📋 마스터 관리자 알림 타입:`, typeCountBefore);
         
-        // customer_edit 타입만 제외 (관리자용)
-        const filteredNotifications = notifications.filter(notif => {
+        // customer_edit 알림도 포함되어 있는지 확인
+        const customerEditCount = notifications.filter(n => n.type === 'customer_edit').length;
+        if (customerEditCount > 0) {
+          console.log(`✅ 마스터 관리자: 데이터 수정 요청(customer_edit) 알림 ${customerEditCount}개 포함`);
+        } else {
+          console.log(`ℹ️ 마스터 관리자: 데이터 수정 요청(customer_edit) 알림 없음 (API에서 반환하지 않음)`);
+        }
+        
+        // 마스터 관리자는 모든 알림 표시 (API에서 이미 모든 알림을 반환)
+      } else if (userEmail) {
+        const beforeCount = notifications.length;
+        notifications = notifications.filter(notif => {
+          // ⚠️ 중요: 회의 알림(meeting)은 API에서 이미 필터링됨
+          // API가 해당 사용자의 user_id나 attendees를 기준으로 필터링하므로
+          // 클라이언트에서 추가 필터링할 필요 없음
+          if (notif.type === 'meeting') {
+            console.log(`✅ 회의 알림은 API에서 이미 필터링됨:`, {
+              id: notif.id,
+              title: notif.title
+            });
+            return true; // 회의 알림은 항상 표시
+          }
+          
+          // ⚠️ 중요: 상담 알림(sales_consultation)도 API에서 이미 필터링됨
+          if (notif.type === 'sales_consultation') {
+            console.log(`✅ 상담 알림은 API에서 이미 필터링됨:`, {
+              id: notif.id,
+              title: notif.title
+            });
+            return true; // 상담 알림도 항상 표시
+          }
+          
+          // ⚠️ 중요: 교육원 요청(institution_request)도 API에서 이미 필터링됨
+          if (notif.type === 'institution_request') {
+            console.log(`✅ 교육원 요청 알림은 API에서 이미 필터링됨:`, {
+              id: notif.id,
+              title: notif.title
+            });
+            return true; // 교육원 요청 알림도 항상 표시
+          }
+          
+          // customer_edit는 관리자용이므로 일반 사용자에게서 제외
           if (notif.type === 'customer_edit') {
             console.log(`⏭️ customer_edit 알림 제외 (관리자용):`, notif.id);
             return false;
           }
           
-          // 나머지 알림은 모두 표시 (API가 이미 필터링함)
-          console.log(`✅ 알림 표시:`, {
+          // 기타 알림 타입은 API에서 이미 필터링되었으므로 표시
+          // (업무협조 등은 API에서 recipient_id로 필터링)
+          console.log(`✅ 알림 표시 (API에서 이미 필터링됨):`, {
             id: notif.id,
             type: notif.type,
             title: notif.title
           });
           return true;
         });
+        console.log(`📬 customer_edit 제외 후: ${beforeCount}개 → ${notifications.length}개`);
         
-        notifications = filteredNotifications;
-        console.log(`📬 필터링 후 알림 개수: ${notifications.length}개`);
-        console.log(`📧 내 이메일: ${userEmail}`);
-      } else {
+        // 필터링 후 알림 타입별 개수 확인
+        const typeCountAfter = {};
+        notifications.forEach(notif => {
+          typeCountAfter[notif.type] = (typeCountAfter[notif.type] || 0) + 1;
+        });
+        console.log(`📋 알림 타입별 개수 (필터링 후):`, typeCountAfter);
+      } else if (!userEmail) {
         console.warn('⚠️ 이메일이 설정되지 않아 customer_edit 알림만 표시합니다.');
         // 이메일이 없으면 customer_edit만 표시 (관리자용)
         notifications = notifications.filter(notif => notif.type === 'customer_edit');
@@ -497,6 +593,14 @@ async function fetchNotifications() {
       }
       
       // 각 알림 상세 정보 로그
+      console.log(`📋 ===== 알림 타입별 개수 =====`);
+      const typeCount = {};
+      notifications.forEach(notif => {
+        typeCount[notif.type] = (typeCount[notif.type] || 0) + 1;
+      });
+      console.log('알림 타입별 개수:', typeCount);
+      console.log(`📋 ===== 알림 타입별 개수 끝 =====`);
+      
       notifications.forEach((notif, index) => {
         console.log(`📬 알림 ${index + 1}:`, {
           id: notif.id,
@@ -613,16 +717,18 @@ async function checkNotifications() {
   
   if (notifications.length > 0) {
     console.log('🔔 알림 처리 시작...');
-    notifications.forEach((notification, index) => {
-      console.log(`\n🔔 알림 ${index + 1}/${notifications.length} 처리 중:`, {
+    
+    // 여러 알림을 하나로 합치거나 순차적으로 표시
+    if (notifications.length === 1) {
+      // 알림이 1개면 그대로 표시
+      const notification = notifications[0];
+      console.log(`\n🔔 알림 1/1 처리 중:`, {
         id: notification.id,
         type: notification.type,
         title: notification.title,
         isDuplicate: processedNotificationIds.has(notification.id)
       });
       
-      // 중복 알림 방지 (repeatNotifications가 false일 때만)
-      // undefined나 true일 때는 중복 체크하지 않음 (기본값: true)
       const shouldRepeat = config.repeatNotifications !== false;
       if (!shouldRepeat) {
         if (processedNotificationIds.has(notification.id)) {
@@ -630,13 +736,8 @@ async function checkNotifications() {
           return;
         }
         processedNotificationIds.add(notification.id);
-        console.log('✅ 알림 ID 추가됨 (중복 방지):', notification.id);
-      } else {
-        console.log('🔄 repeatNotifications 활성화: 중복 체크 없이 알림 표시');
       }
-      console.log('📢 알림 표시 시작:', notification.title);
       
-      // 알림 표시
       try {
         showNotification(notification.title, notification.message, {
           priority: notification.priority || 'normal',
@@ -646,9 +747,82 @@ async function checkNotifications() {
         console.log('✅ 알림 표시 완료:', notification.title);
       } catch (error) {
         console.error('❌ 알림 표시 오류:', error);
-        console.error('❌ 알림 데이터:', notification);
       }
-    });
+    } else {
+      // 알림이 여러 개면 하나로 합쳐서 표시
+      const notificationTypes = {};
+      notifications.forEach(notif => {
+        const type = notif.type;
+        if (!notificationTypes[type]) {
+          notificationTypes[type] = [];
+        }
+        notificationTypes[type].push(notif);
+      });
+      
+      // 타입별로 그룹화된 알림 메시지 생성
+      const typeMessages = [];
+      Object.keys(notificationTypes).forEach(type => {
+        const count = notificationTypes[type].length;
+        const typeNames = {
+          'meeting': '회의',
+          'sales_consultation': '상담',
+          'work_cooperation': '업무협조',
+          'institution_request': '교육원 요청',
+          'customer_edit': '고객 수정'
+        };
+        const typeName = typeNames[type] || type;
+        typeMessages.push(`${typeName} ${count}개`);
+      });
+      
+      const summaryTitle = `${notifications.length}개의 새 알림`;
+      const summaryBody = typeMessages.join(', ');
+      
+      console.log(`📋 알림 요약: ${summaryTitle} - ${summaryBody}`);
+      
+      // 요약 알림 표시
+      try {
+        showNotification(summaryTitle, summaryBody, {
+          priority: 'high', // 중요도 높게 설정하여 더 오래 표시
+          data: { notifications: notifications }
+        });
+        console.log('✅ 요약 알림 표시 완료');
+      } catch (error) {
+        console.error('❌ 요약 알림 표시 오류:', error);
+      }
+      
+      // 각 알림도 개별적으로 표시 (딜레이를 두고 순차적으로)
+      // 요약 알림 후 3초 대기 후 첫 번째 알림 표시, 이후 각 알림 사이에 4초 간격
+      notifications.forEach((notification, index) => {
+        setTimeout(() => {
+          console.log(`\n🔔 알림 ${index + 1}/${notifications.length} 처리 중:`, {
+            id: notification.id,
+            type: notification.type,
+            title: notification.title
+          });
+          
+          const shouldRepeat = config.repeatNotifications !== false;
+          if (!shouldRepeat) {
+            if (processedNotificationIds.has(notification.id)) {
+              console.log('⏭️ 중복 알림 건너뛰기:', notification.id);
+              return;
+            }
+            processedNotificationIds.add(notification.id);
+          }
+          
+          try {
+            showNotification(notification.title, notification.message, {
+              priority: notification.priority || 'normal',
+              data: notification.data,
+              icon: notification.icon
+            });
+            console.log('✅ 알림 표시 완료:', notification.title);
+          } catch (error) {
+            console.error('❌ 알림 표시 오류:', error);
+          }
+        }, 3000 + (index * 4000)); // 요약 알림 후 3초 대기, 이후 각 알림 사이에 4초 간격
+      });
+    }
+    
     console.log('🔔 알림 처리 완료\n');
 
     // 설정 창이 열려있으면 업데이트
@@ -1001,26 +1175,6 @@ app.whenReady().then(() => {
       console.error('❌ API 연결 실패 - 서버를 확인하세요');
     }
   });
-  
-  // 전역 단축키 등록 (Cmd+Option+I 또는 Ctrl+Shift+I)
-  const { globalShortcut } = require('electron');
-  globalShortcut.register('CommandOrControl+Shift+I', () => {
-    if (mainWindow) {
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools();
-      } else {
-        mainWindow.webContents.openDevTools();
-      }
-    } else {
-      createSettingsWindow();
-      setTimeout(() => {
-        if (mainWindow) {
-          mainWindow.webContents.openDevTools();
-        }
-      }, 500);
-    }
-  });
-  console.log('✅ 단축키 등록: Cmd+Option+I (macOS) 또는 Ctrl+Shift+I (Windows/Linux)');
   
   createTray();
   startServer(); // HTTP 서버 시작

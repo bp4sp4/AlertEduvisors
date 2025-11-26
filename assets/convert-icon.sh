@@ -55,3 +55,5 @@ echo ""
 echo "⚠️  Windows용 .ico 파일은 온라인 변환기를 사용하세요:"
 echo "   https://cloudconvert.com/png-to-ico"
 
+
+

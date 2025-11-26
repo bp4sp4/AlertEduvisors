@@ -16,22 +16,22 @@
       padding: 20px;
     }
     .container {
-      max-width: 600px;
+      max-width: 750px;
       margin: 0 auto;
       background: white;
       border-radius: 8px;
-      padding: 30px;
+      padding: 40px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
     h1 {
       color: #333;
       margin-bottom: 10px;
-      font-size: 24px;
+      font-size: 32px;
     }
     .subtitle {
       color: #666;
       margin-bottom: 20px;
-      font-size: 14px;
+      font-size: 16px;
     }
     .form-group {
       margin-bottom: 20px;
@@ -40,16 +40,16 @@
       display: block;
       font-weight: 600;
       color: #333;
-      margin-bottom: 8px;
-      font-size: 14px;
+      margin-bottom: 10px;
+      font-size: 16px;
     }
     .form-group input,
     .form-group select {
       width: 100%;
-      padding: 10px;
+      padding: 14px;
       border: 2px solid #e0e0e0;
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 16px;
       transition: border-color 0.3s ease;
     }
     .form-group input:focus,
@@ -58,23 +58,25 @@
       border-color: #667eea;
     }
     .form-group .help-text {
-      font-size: 12px;
+      font-size: 14px;
       color: #666;
-      margin-top: 5px;
+      margin-top: 8px;
+      line-height: 1.6;
     }
     .toggle-group {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 15px;
+      padding: 20px;
       background: #f8f9fa;
       border-radius: 6px;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
     }
     .toggle-group label {
       font-weight: 600;
       color: #333;
       margin: 0;
+      font-size: 16px;
     }
     .toggle-switch {
       position: relative;
@@ -103,16 +105,16 @@
       left: 27px;
     }
     .status-box {
-      padding: 15px;
+      padding: 20px;
       background: #f8f9fa;
       border-radius: 6px;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
     }
     .status-box .status-item {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 13px;
+      margin-bottom: 12px;
+      font-size: 15px;
     }
     .status-box .status-item:last-child {
       margin-bottom: 0;
@@ -132,10 +134,10 @@
       color: #dc3545;
     }
     .btn {
-      padding: 12px 24px;
+      padding: 16px 24px;
       border: none;
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 16px;
       cursor: pointer;
       transition: all 0.3s ease;
       font-weight: 500;
@@ -171,7 +173,7 @@
       margin: 0;
       color: #0c5460;
       line-height: 1.6;
-      font-size: 13px;
+      font-size: 15px;
     }
     .warning-box {
       background: #fff3cd;
@@ -184,7 +186,73 @@
       margin: 0;
       color: #856404;
       line-height: 1.6;
-      font-size: 13px;
+      font-size: 15px;
+    }
+    .help-btn {
+      background: #6c757d;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .help-btn:hover {
+      background: #5a6268;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 30px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 24px;
+      color: #333;
+    }
+    .close {
+      color: #aaa;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 20px;
+    }
+    .close:hover {
+      color: #000;
+    }
+    .modal-body {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #333;
+    }
+    .modal-body ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .modal-body li {
+      margin-bottom: 10px;
     }
   </style>
 </head>
@@ -193,9 +261,9 @@
     <h1>🔔 Alert Electron 설정</h1>
     <p class="subtitle">NMS 시스템 알림 연동 설정</p>
     
-    <div class="info-box">
-      <p><strong>작동 방식:</strong> 이 앱은 Next.js API를 주기적으로 조회하여 새로운 알림을 받아 표시합니다.</p>
-    </div>
+    <button type="button" class="help-btn" id="help-btn" style="margin-bottom: 20px;">📖 사용법 보기</button>
+
+ 
 
     <div id="warning-box" class="warning-box" style="display: none;">
       <p id="warning-text"></p>
@@ -207,21 +275,6 @@
         <div class="toggle-switch" id="enabled-toggle"></div>
       </div>
 
-      <div class="form-group">
-        <label for="api-url">API URL *</label>
-        <input 
-          type="text" 
-          id="api-url" 
-          value="https://nms-system.vercel.app/api/notifications"
-          placeholder="https://nms-system.vercel.app/api/notifications"
-          required
-        >
-        <div class="help-text">
-          <strong>필수:</strong> Next.js 알림 API 엔드포인트<br>
-          프로덕션: <code>https://nms-system.vercel.app/api/notifications</code><br>
-          개발 환경: <code>http://localhost:3000/api/notifications</code>
-        </div>
-      </div>
 
       <div class="form-group">
         <label for="email">이메일 *</label>
@@ -244,17 +297,16 @@
           id="polling-interval" 
           min="10" 
           max="300" 
-          value="10"
+          value="300"
           required
         >
-        <div class="help-text">권장: 10초 (10-300초)</div>
+        <div class="help-text">권장: 5분 (10-300초)</div>
       </div>
 
       <div class="form-group">
         <label for="notification-types">알림 타입</label>
         <select id="notification-types">
           <option value="all">모든 알림</option>
-          <option value="customer_edit">고객 수정 내역 (관리자)</option>
           <option value="work_cooperation">업무협조 요청</option>
           <option value="sales_consultation">상담 요청</option>
           <option value="institution_request">교육원 요청</option>
@@ -274,10 +326,39 @@
         </div>
       </div>
 
-      <button type="button" class="btn btn-secondary" id="test-api-btn">API 연결 테스트</button>
-      <button type="button" class="btn btn-secondary" id="test-notification-btn">테스트 알림</button>
-      <button type="button" class="btn btn-secondary" id="clear-history-btn" style="background: #ff9800; color: white;">알림 히스토리 초기화</button>
+      <div class="warning-box" style="margin-bottom: 20px;">
+        <p><strong>⚠️ 주의사항</strong></p>
+        <div style="margin-top: 10px; line-height: 1.8;">
+          <p><li>본 알림 도구는 업무 효율 향상을 위한 보조 수단이며, 사용은 선택 사항입니다.</li></p>
+          <p><li>알림 미수신 또는 시간 내 확인 지연으로 발생하는 업무 누락에 대한 책임은 사용자에게 있습니다.</li></p>
+          <p><li>네트워크 환경 및 서버 상태에 따라 알림이 지연되거나 일부 전달되지 않을 수 있습니다.</li></p>
+          <p><li>중요한 업무 및 필수 확인 사항은 반드시 웹 시스템에서 직접 확인해 주시기 바랍니다.</li></p>
+        </div>
+      </div>
+
       <button type="submit" class="btn btn-primary">설정 저장</button>
+    </form>
+
+    <!-- 사용법 팝업 모달 -->
+    <div id="help-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📖 사용법</h2>
+          <span class="close" id="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+          <h3 style="margin-top: 0; color: #667eea;">사용 방법</h3>
+          <ol>
+            <li>이메일 주소를 입력하세요</li>
+            <li>폴링 간격을 설정하세요 (권장: 10초)</li>
+            <li>알림 타입을 선택하세요</li>
+            <li>"설정 저장" 버튼을 클릭하세요</li>
+            <li>앱이 백그라운드에서 자동으로 알림을 확인합니다</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
     </form>
   </div>
 
@@ -300,7 +381,7 @@
         console.log('📧 로드된 이메일:', config.email || '(없음)', '타입:', typeof config.email);
 
         // 폼에 설정 값 채우기
-        document.getElementById('api-url').value = config.apiUrl || 'http://localhost:3000/api/notifications';
+        // API URL은 고정값 사용 (사용자 변경 불가)
         document.getElementById('email').value = config.email || '';
         document.getElementById('polling-interval').value = (config.pollingInterval || 10000) / 1000;
         document.getElementById('notification-types').value = config.types || 'all';
@@ -392,7 +473,8 @@
           
           const enabled = enabledToggle.classList.contains('active');
           const email = emailTrimmedValue;
-          const apiUrl = document.getElementById('api-url').value || 'http://localhost:3000/api/notifications';
+          // API URL은 고정값 사용 (사용자 변경 불가)
+          const apiUrl = 'https://nms-system.vercel.app/api/notifications';
           const pollingInterval = parseInt(document.getElementById('polling-interval').value) * 1000;
           const types = document.getElementById('notification-types').value;
 
@@ -482,98 +564,26 @@
         }
       });
 
-      // API 연결 테스트
-      document.getElementById('test-api-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('test-api-btn');
-        btn.disabled = true;
-        btn.textContent = '테스트 중...';
-
-        try {
-          // 현재 설정 확인
-          const currentConfig = await ipcRenderer.invoke('get-config');
-          console.log('🧪 테스트 전 설정 확인:', currentConfig);
-          
-          if (!currentConfig.email && !currentConfig.userId) {
-            alert('⚠️ 이메일이 설정되지 않았습니다.\n\n설정에서 이메일을 입력한 후 "설정 저장"을 클릭하세요.');
-            btn.disabled = false;
-            btn.textContent = 'API 연결 테스트';
-            return;
-          }
-          
-          const result = await ipcRenderer.invoke('test-api-connection');
-          console.log('🧪 테스트 결과:', result);
-          
-          if (result.success) {
-            let message = `✅ API 연결 성공!\n\n`;
-            message += `- 상태: ${result.status || 200}\n`;
-            message += `- 알림 개수: ${result.count || 0}개\n`;
-            if (result.data && result.data.last_checked) {
-              message += `- 마지막 확인: ${new Date(result.data.last_checked).toLocaleString()}`;
-            }
-            alert(message);
-          } else {
-            let message = `❌ API 연결 실패\n\n`;
-            message += `오류: ${result.message || '알 수 없는 오류'}\n`;
-            if (result.code) {
-              message += `코드: ${result.code}\n`;
-            }
-            if (result.status) {
-              message += `HTTP 상태: ${result.status}`;
-            }
-            message += `\n\n확인 사항:\n`;
-            message += `1. Next.js 서버가 실행 중인가요? (http://localhost:3000)\n`;
-            message += `2. 이메일이 올바르게 저장되었나요?\n`;
-            message += `3. API URL이 올바른가요? (${currentConfig.apiUrl})`;
-            alert(message);
-          }
-        } catch (error) {
-          console.error('❌ 테스트 오류:', error);
-          alert(`❌ 테스트 오류: ${error.message}`);
-        } finally {
-          btn.disabled = false;
-          btn.textContent = 'API 연결 테스트';
-        }
-      });
-
-      // 테스트 알림
-      document.getElementById('test-notification-btn').addEventListener('click', async () => {
-        try {
-          await ipcRenderer.invoke('test-notification');
-        } catch (error) {
-          console.error('테스트 알림 오류:', error);
-        }
-      });
-
-      // 알림 히스토리 초기화
-      document.getElementById('clear-history-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('clear-history-btn');
-        const originalText = btn.textContent;
-        
-        if (!confirm('⚠️ 알림 히스토리를 초기화하시겠습니까?\n\n이렇게 하면:\n- 이미 확인한 알림이 다시 표시될 수 있습니다\n- last_checked가 초기화됩니다\n- 중복 방지 목록이 초기화됩니다')) {
-          return;
-        }
-        
-        btn.disabled = true;
-        btn.textContent = '초기화 중...';
-        
-        try {
-          const result = await ipcRenderer.invoke('clear-processed-notifications');
-          
-          if (result.success) {
-            alert(`✅ 알림 히스토리 초기화 완료!\n\n${result.clearedCount || 0}개의 알림 ID가 제거되었습니다.\n이제 모든 알림을 다시 확인할 수 있습니다.`);
-            console.log('✅ 알림 히스토리 초기화 성공:', result);
-          } else {
-            alert('❌ 초기화 실패');
-          }
-        } catch (error) {
-          console.error('❌ 초기화 오류:', error);
-          alert('❌ 초기화 중 오류가 발생했습니다: ' + error.message);
-        } finally {
-          btn.disabled = false;
-          btn.textContent = originalText;
-        }
-      });
     }
+
+    // 사용법 팝업 모달
+    const helpModal = document.getElementById('help-modal');
+    const helpBtn = document.getElementById('help-btn');
+    const closeModal = document.getElementById('close-modal');
+
+    helpBtn.addEventListener('click', () => {
+      helpModal.style.display = 'block';
+    });
+
+    closeModal.addEventListener('click', () => {
+      helpModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (event) => {
+      if (event.target === helpModal) {
+        helpModal.style.display = 'none';
+      }
+    });
 
     // 초기화
     loadConfig().then(() => {
