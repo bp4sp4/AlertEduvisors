@@ -1,6 +1,9 @@
-// 환경 변수 로드 (개발 환경)
-if (process.env.NODE_ENV !== 'production') {
+// 환경 변수 로드 (개발 및 프로덕션 환경)
+// 프로덕션 빌드에서는 빌드 시 설정된 환경 변수 사용
+try {
   require('dotenv').config();
+} catch (e) {
+  // dotenv가 없어도 계속 진행 (프로덕션 빌드에서 환경 변수는 빌드 시 설정됨)
 }
 
 const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage, globalShortcut } = require('electron');

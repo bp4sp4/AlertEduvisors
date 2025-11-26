@@ -6,6 +6,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "prebuild": "node inject-env.js",
+    "prebuild:mac": "node inject-env.js",
+    "prebuild:win": "node inject-env.js",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
