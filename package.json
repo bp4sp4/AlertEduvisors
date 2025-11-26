@@ -10,8 +10,8 @@
     "prebuild:mac": "node inject-env.js",
     "prebuild:win": "node inject-env.js",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac --publish never",
-    "build:win": "electron-builder --win --publish never",
+    "build:mac": "electron-builder --mac --config.publish=null",
+    "build:win": "electron-builder --win --config.publish=null",
     "build:all": "electron-builder --mac --win",
     "dist": "npm run build"
   },
@@ -25,7 +25,7 @@
   "build": {
     "appId": "com.alert.electron",
     "productName": "Alert Electron",
-    "publish": "never",
+    "publish": null,
     "directories": {
       "output": "dist"
     },

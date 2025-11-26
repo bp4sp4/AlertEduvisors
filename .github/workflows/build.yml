@@ -79,8 +79,8 @@ jobs:
           unset GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
           export GH_TOKEN=""
           export GITHUB_TOKEN=""
-          export PUBLISH=never
-          export ELECTRON_BUILDER_PUBLISH=never
+          export PUBLISH=null
+          export ELECTRON_BUILDER_PUBLISH=null
           
           # electron-builder 네트워크 요청 완전 차단
           export ELECTRON_BUILDER_CACHE=""
@@ -112,7 +112,8 @@ jobs:
           
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
             echo "macOS 빌드 실행 중..."
-            if npx electron-builder --mac --publish never --config.nsis.oneClick=false; then
+            # publish를 null로 명시적으로 설정하여 모든 네트워크 요청 차단
+            if npx electron-builder --mac --config.publish=null; then
               echo "✅ macOS 빌드 성공"
             else
               echo "❌ macOS 빌드 실패"
@@ -120,13 +121,8 @@ jobs:
             fi
           else
             echo "Windows 빌드 실행 중..."
-            # Windows 빌드: 네트워크 요청 완전 차단
-            # --publish never와 함께 명시적으로 설정하여 모든 네트워크 요청 차단
-            echo "electron-builder 버전 확인:"
-            npx electron-builder --version || true
-            
-            # Windows 빌드 실행 (네트워크 요청 없이 로컬 리소스만 사용)
-            if npx electron-builder --win --publish never 2>&1; then
+            # publish를 null로 명시적으로 설정하여 모든 네트워크 요청 차단
+            if npx electron-builder --win --config.publish=null; then
               echo "✅ Windows 빌드 성공"
             else
               BUILD_EXIT_CODE=$?
@@ -139,8 +135,8 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
-          PUBLISH: never
-          ELECTRON_BUILDER_PUBLISH: never
+          PUBLISH: null
+          ELECTRON_BUILDER_PUBLISH: null
           ELECTRON_BUILDER_CACHE: ""
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: "false"
           ELECTRON_GET_USE_PROXY: "false"
