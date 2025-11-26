@@ -44,6 +44,12 @@ jobs:
             echo "✅ MASTER_ADMIN_PASSWORD가 설정되었습니다."
           fi
       
+      - name: Generate config.bin
+        shell: bash
+        run: node inject-env.js
+        env:
+          MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
+      
       - name: Build app
         shell: bash
         run: |
