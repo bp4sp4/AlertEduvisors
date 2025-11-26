@@ -45,17 +45,7 @@ jobs:
           fi
       
       - name: Build app
-        shell: bash
-        run: |
-          # Publish 완전히 비활성화
-          export PUBLISH=never
-          export GH_TOKEN=""
-          export GITHUB_TOKEN=""
-          unset GH_TOKEN || true
-          unset GITHUB_TOKEN || true
-          
-          # 빌드 실행 (publish 옵션 명시적 추가)
-          npm run ${{ matrix.os == 'macos-latest' && 'build:mac' || 'build:win' }} -- --publish=never
+        run: ${{ matrix.build-command }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
@@ -63,7 +53,6 @@ jobs:
           GH_TOKEN: ""
           GITHUB_TOKEN: ""
           CI: "true"
-          ELECTRON_BUILDER_CACHE: ""
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
