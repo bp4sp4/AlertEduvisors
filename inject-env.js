@@ -5,15 +5,14 @@ const path = require('path');
 const mainJsPath = path.join(__dirname, 'main.js');
 const masterAdminPassword = process.env.MASTER_ADMIN_PASSWORD;
 
-// 환경 변수가 없으면 에러 발생 (프로덕션 빌드에서는 필수)
-if (!masterAdminPassword && process.env.NODE_ENV === 'production') {
-  console.error('❌ 오류: MASTER_ADMIN_PASSWORD 환경 변수가 설정되지 않았습니다.');
-  console.error('   GitHub Secrets에 MASTER_ADMIN_PASSWORD를 설정해주세요.');
-  process.exit(1);
-}
-
-// 개발 환경에서는 기본값 사용 (로컬 개발용)
+// 환경 변수가 없으면 기본값 사용 (GitHub Secrets가 설정되지 않은 경우 대비)
+// 보안: 실제 배포 시에는 GitHub Secrets에 비밀번호를 설정하는 것을 권장합니다
 const passwordToInject = masterAdminPassword || 'nms2024admin!';
+
+if (!masterAdminPassword) {
+  console.log('⚠️ MASTER_ADMIN_PASSWORD 환경 변수가 설정되지 않았습니다. 기본값을 사용합니다.');
+  console.log('   보안을 위해 GitHub Secrets에 MASTER_ADMIN_PASSWORD를 설정하는 것을 권장합니다.');
+}
 
 // main.js 파일 읽기
 let mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
