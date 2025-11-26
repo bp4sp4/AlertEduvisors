@@ -82,6 +82,12 @@ jobs:
           export PUBLISH=never
           export ELECTRON_BUILDER_PUBLISH=never
           
+          # electron-builder 네트워크 요청 완전 차단
+          export ELECTRON_BUILDER_CACHE=""
+          export ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=false
+          export ELECTRON_GET_USE_PROXY=false
+          export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+          
           # config.bin 파일 확인
           echo "📦 빌드 전 파일 확인:"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
@@ -106,7 +112,7 @@ jobs:
           
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
             echo "macOS 빌드 실행 중..."
-            if npx electron-builder --mac --publish never; then
+            if npx electron-builder --mac --publish never --config.nsis.oneClick=false; then
               echo "✅ macOS 빌드 성공"
             else
               echo "❌ macOS 빌드 실패"
@@ -114,12 +120,19 @@ jobs:
             fi
           else
             echo "Windows 빌드 실행 중..."
-            if npx electron-builder --win --publish never; then
+            # Windows 빌드: 네트워크 요청 완전 차단
+            # --publish never와 함께 명시적으로 설정하여 모든 네트워크 요청 차단
+            echo "electron-builder 버전 확인:"
+            npx electron-builder --version || true
+            
+            # Windows 빌드 실행 (네트워크 요청 없이 로컬 리소스만 사용)
+            if npx electron-builder --win --publish never 2>&1; then
               echo "✅ Windows 빌드 성공"
             else
-              echo "❌ Windows 빌드 실패"
+              BUILD_EXIT_CODE=$?
+              echo "❌ Windows 빌드 실패 (exit code: $BUILD_EXIT_CODE)"
               echo "오류 상세 정보를 확인하세요."
-              exit 1
+              exit $BUILD_EXIT_CODE
             fi
           fi
           echo "✅ 빌드 완료"
@@ -128,6 +141,10 @@ jobs:
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
           PUBLISH: never
           ELECTRON_BUILDER_PUBLISH: never
+          ELECTRON_BUILDER_CACHE: ""
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: "false"
+          ELECTRON_GET_USE_PROXY: "false"
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
           GH_TOKEN: ""
           GITHUB_TOKEN: ""
           CI: "true"
