@@ -50,6 +50,17 @@ jobs:
         env:
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
       
+      - name: Verify config.bin
+        shell: bash
+        run: |
+          if [ -f "config.bin" ]; then
+            echo "✅ config.bin 파일이 생성되었습니다."
+            echo "파일 크기: $(ls -lh config.bin | awk '{print $5}')"
+          else
+            echo "❌ config.bin 파일이 생성되지 않았습니다!"
+            exit 1
+          fi
+      
       - name: Build app
         shell: bash
         run: |
@@ -60,13 +71,25 @@ jobs:
           export PUBLISH=never
           export ELECTRON_BUILDER_PUBLISH=never
           
+          # config.bin 파일 확인
+          echo "📦 빌드 전 파일 확인:"
+          ls -la config.bin || echo "⚠️ config.bin 파일을 찾을 수 없습니다"
+          
           # 플랫폼별 electron-builder 직접 호출 (npm run 스크립트 우회)
           # --publish never를 두 번 명시하여 확실히 차단
+          echo "🔨 빌드 시작..."
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            npx electron-builder --mac --publish never
+            npx electron-builder --mac --publish never || {
+              echo "❌ macOS 빌드 실패"
+              exit 1
+            }
           else
-            npx electron-builder --win --publish never
+            npx electron-builder --win --publish never || {
+              echo "❌ Windows 빌드 실패"
+              exit 1
+            }
           fi
+          echo "✅ 빌드 완료"
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
