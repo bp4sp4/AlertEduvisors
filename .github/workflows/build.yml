@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '버전 번호 (예: 1.0.0)'
+        description: '버전 번호 (예: 1.1.0)'
         required: false
 
 jobs:
@@ -52,6 +52,7 @@ jobs:
           PUBLISH: never
           GH_TOKEN: ""
           GITHUB_TOKEN: ""
+          CI: "true"
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
