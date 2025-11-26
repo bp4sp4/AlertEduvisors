@@ -36,6 +36,7 @@
       "settings.html",
       "index.html",
       "config.bin",
+      "electron-builder.yml",
       "assets/**/*",
       "package.json"
     ],
