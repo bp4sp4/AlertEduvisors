@@ -23,7 +23,7 @@ function loadConfig() {
   
   // 기본 설정
   const defaultConfig = {
-    apiUrl: process.env.API_URL || (process.env.WEB_URL ? `${process.env.WEB_URL}/api/notifications` : 'http://localhost:3000/api/notifications'),
+    apiUrl: process.env.API_URL || (process.env.WEB_URL ? `${process.env.WEB_URL}/api/notifications` : 'https://nms-system.vercel.app/api/notifications'),
     userId: process.env.USER_ID || '',
     email: process.env.EMAIL || '',
     pollingInterval: 300000, // 5분 (300초, 기본값)
@@ -97,7 +97,7 @@ function saveConfig(config) {
     console.log('💾 처리된 userIdToSave:', userIdToSave, '타입:', typeof userIdToSave);
     
     const configToSave = {
-      apiUrl: config.apiUrl || 'http://localhost:3000/api/notifications',
+      apiUrl: config.apiUrl || 'https://nms-system.vercel.app/api/notifications',
       email: emailToSave,
       userId: userIdToSave,
       pollingInterval: config.pollingInterval || 10000,

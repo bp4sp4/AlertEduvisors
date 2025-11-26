@@ -593,7 +593,7 @@
           const enabled = enabledToggle.classList.contains('active');
           const email = emailTrimmedValue;
           // API URL은 고정값 사용 (사용자 변경 불가)
-          const apiUrl = 'http://localhost:3000/api/notifications';
+          const apiUrl = 'https://nms-system.vercel.app/api/notifications';
           const pollingInterval = parseInt(document.getElementById('polling-interval').value) * 1000;
           const types = document.getElementById('notification-types').value;
 
