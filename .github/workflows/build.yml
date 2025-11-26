@@ -45,19 +45,30 @@ jobs:
           fi
       
       - name: Build app
-        run: ${{ matrix.build-command }} --publish never
-        env:
-          # 게시(Publish)를 명시적으로 비활성화하여 오류를 방지합니다.
-          ELECTRON_BUILDER_PUBLISH: never
+        shell: bash
+        run: |
+          # 모든 GitHub 관련 환경 변수 완전 제거
+          unset GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
+          export GH_TOKEN=""
+          export GITHUB_TOKEN=""
+          export PUBLISH=never
+          export ELECTRON_BUILDER_PUBLISH=never
           
+          # 플랫폼별 electron-builder 직접 호출 (npm run 스크립트 우회)
+          # --publish never를 두 번 명시하여 확실히 차단
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            npx electron-builder --mac --publish never
+          else
+            npx electron-builder --win --publish never
+          fi
+        env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
           PUBLISH: never
-          GH_TOKEN: "" # GitHub 토큰 비활성화
-          GITHUB_TOKEN: "" # GitHub 토큰 비활성화
+          ELECTRON_BUILDER_PUBLISH: never
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
           CI: "true"
-          ELECTRON_BUILDER_CACHE: ""
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
