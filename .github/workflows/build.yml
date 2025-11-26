@@ -44,6 +44,7 @@ jobs:
             echo "✅ MASTER_ADMIN_PASSWORD가 설정되었습니다."
           fi
       
+      # 1. config.bin 파일 생성 단계 (기존 로직 유지)
       - name: Generate config.bin
         shell: bash
         run: node inject-env.js
@@ -71,49 +72,40 @@ jobs:
             echo "❌ config.bin 파일이 생성되지 않았습니다!"
             exit 1
           fi
-      
+
+
+
+      # 2. 빌드 및 게시 차단 강화 단계 (PublishManager 오류 해결을 위한 수정)
       - name: Build app
         shell: bash
         run: |
-          # 모든 GitHub 관련 환경 변수 완전 제거
+          # 🚨 게시 관련 환경 변수 완전 차단 및 토큰 비우기 (오류 해결 핵심)
           unset GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
           export GH_TOKEN=""
           export GITHUB_TOKEN=""
-          export PUBLISH=null
-          export ELECTRON_BUILDER_PUBLISH=null
+          export PUBLISH="never"                   # 'null' 대신 'never' 명시
+          export ELECTRON_BUILDER_PUBLISH="never"  # 'null' 대신 'never' 명시
           
           # electron-builder 네트워크 요청 완전 차단
           export ELECTRON_BUILDER_CACHE=""
           export ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=false
           export ELECTRON_GET_USE_PROXY=false
           export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+          export ELECTRON_BUILDER_OFFLINE=true
+          export NO_INSTALL=1
           
-          # config.bin 파일 확인
+          # 🔍 빌드 전 파일 최종 확인 (디버깅)
           echo "📦 빌드 전 파일 확인:"
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            if [ -f "config.bin" ]; then
-              echo "✅ config.bin 파일 확인됨"
-            else
-              echo "⚠️ config.bin 파일을 찾을 수 없습니다"
-              exit 1
-            fi
-          else
-            ls -la config.bin || echo "⚠️ config.bin 파일을 찾을 수 없습니다"
-          fi
+          ls -la config.bin || { echo "⚠️ config.bin 파일을 찾을 수 없습니다"; exit 1; }
           
-          # 플랫폼별 electron-builder 직접 호출 (npm run 스크립트 우회)
-          # --publish never를 두 번 명시하여 확실히 차단
           echo "🔨 빌드 시작..."
           echo "현재 디렉토리: $(pwd)"
-          echo "필요한 파일 확인:"
-          test -f "package.json" && echo "✅ package.json" || echo "❌ package.json 없음"
-          test -f "config.bin" && echo "✅ config.bin" || echo "❌ config.bin 없음"
-          test -f "main.js" && echo "✅ main.js" || echo "❌ main.js 없음"
-          
+
+          # 플랫폼별 electron-builder 직접 호출
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
             echo "macOS 빌드 실행 중..."
-            # publish를 null로 명시적으로 설정하여 모든 네트워크 요청 차단
-            if npx electron-builder --mac --config.publish=null; then
+            # --publish=never를 사용하여 게시 완벽 차단
+            if npx electron-builder --mac --publish=never; then
               echo "✅ macOS 빌드 성공"
             else
               echo "❌ macOS 빌드 실패"
@@ -121,8 +113,8 @@ jobs:
             fi
           else
             echo "Windows 빌드 실행 중..."
-            # publish를 null로 명시적으로 설정하여 모든 네트워크 요청 차단
-            if npx electron-builder --win --config.publish=null; then
+            # --publish=never를 사용하여 게시 완벽 차단
+            if npx electron-builder --win --publish=never; then
               echo "✅ Windows 빌드 성공"
             else
               BUILD_EXIT_CODE=$?
@@ -134,15 +126,9 @@ jobs:
           echo "✅ 빌드 완료"
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
-          PUBLISH: null
-          ELECTRON_BUILDER_PUBLISH: null
-          ELECTRON_BUILDER_CACHE: ""
-          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: "false"
-          ELECTRON_GET_USE_PROXY: "false"
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-          GH_TOKEN: ""
-          GITHUB_TOKEN: ""
+          # 이 단계에서는 config.bin이 필요하므로, MASTER_ADMIN_PASSWORD는 불필요함
+          # PUBLISH 관련 환경 변수는 run: 블록 상단에서 설정했으므로 중복 제거
+          ELECTRON_BUILDER_OFFLINE: "true"
           CI: "true"
       
       - name: Upload artifacts
