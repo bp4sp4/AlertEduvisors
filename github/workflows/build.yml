@@ -40,7 +40,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD || 'nms2024admin!' }}
+          MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
