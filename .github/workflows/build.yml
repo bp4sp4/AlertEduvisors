@@ -47,9 +47,10 @@ jobs:
       - name: Build app
         run: ${{ matrix.build-command }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
+          PUBLISH: never
+          GH_TOKEN: ""
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
