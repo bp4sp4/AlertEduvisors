@@ -35,6 +35,7 @@
       "renderer.js",
       "settings.html",
       "index.html",
+      "config.bin",
       "assets/**/*",
       "package.json"
     ],

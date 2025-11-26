@@ -995,9 +995,38 @@ ipcMain.handle('update-config', (event, newConfig) => {
 
 
 // 마스터 관리자 비밀번호 검증
-// 환경 변수에서 비밀번호를 가져옵니다 (기본값: nms2024admin!)
-// .env 파일에 MASTER_ADMIN_PASSWORD를 설정하거나 시스템 환경 변수로 설정하세요
-const MASTER_ADMIN_PASSWORD = process.env.MASTER_ADMIN_PASSWORD || 'nms2024admin!'; 
+// config.bin 파일에서 인코딩된 비밀번호를 읽어서 디코딩합니다
+// 빌드 시 inject-env.js가 config.bin 파일을 생성합니다
+function loadMasterAdminPassword() {
+  const configBinPath = path.join(__dirname, 'config.bin');
+  const DEFAULT_PASSWORD = 'AdMin2025!!';
+  
+  try {
+    // 1. 환경 변수에서 먼저 확인 (개발 환경)
+    if (process.env.MASTER_ADMIN_PASSWORD) {
+      console.log('✅ 환경 변수에서 MASTER_ADMIN_PASSWORD를 읽었습니다.');
+      return process.env.MASTER_ADMIN_PASSWORD;
+    }
+    
+    // 2. config.bin 파일에서 읽기 (프로덕션 빌드)
+    if (fs.existsSync(configBinPath)) {
+      const encodedPassword = fs.readFileSync(configBinPath, 'utf8').trim();
+      const decodedPassword = Buffer.from(encodedPassword, 'base64').toString('utf8');
+      console.log('✅ config.bin 파일에서 비밀번호를 읽었습니다.');
+      return decodedPassword;
+    }
+    
+    // 3. 둘 다 없으면 기본값 사용
+    console.log('⚠️ 환경 변수와 config.bin 파일이 없어 기본 비밀번호를 사용합니다.');
+    return DEFAULT_PASSWORD;
+  } catch (error) {
+    console.error('❌ 비밀번호 로드 오류:', error.message);
+    console.log('⚠️ 기본 비밀번호를 사용합니다.');
+    return DEFAULT_PASSWORD;
+  }
+}
+
+const MASTER_ADMIN_PASSWORD = loadMasterAdminPassword(); 
 
 ipcMain.handle('verify-admin-password', (event, password) => {
   console.log('🔒 마스터 관리자 비밀번호 검증 시도');

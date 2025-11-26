@@ -1,36 +1,29 @@
-// 빌드 시 환경 변수를 코드에 주입하는 스크립트
+// inject-env.js
+
 const fs = require('fs');
 const path = require('path');
 
-const mainJsPath = path.join(__dirname, 'main.js');
+// 1. GitHub Actions Secrets에서 값을 가져옵니다.
 const masterAdminPassword = process.env.MASTER_ADMIN_PASSWORD;
-
-// 환경 변수가 없으면 기본값 사용 (GitHub Secrets가 설정되지 않은 경우 대비)
-// 보안: 실제 배포 시에는 GitHub Secrets에 비밀번호를 설정하는 것을 권장합니다
-const passwordToInject = masterAdminPassword || 'nms2024admin!';
+const DEFAULT_PASSWORD = 'AdMin2025!!'; 
+const passwordToEncode = masterAdminPassword || DEFAULT_PASSWORD; 
+const configFilePath = path.join(__dirname, 'config.bin');
 
 if (!masterAdminPassword) {
-  console.log('⚠️ MASTER_ADMIN_PASSWORD 환경 변수가 설정되지 않았습니다. 기본값을 사용합니다.');
-  console.log('   보안을 위해 GitHub Secrets에 MASTER_ADMIN_PASSWORD를 설정하는 것을 권장합니다.');
-}
-
-// main.js 파일 읽기
-let mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
-
-// MASTER_ADMIN_PASSWORD 상수 부분 찾아서 교체
-const passwordPattern = /const MASTER_ADMIN_PASSWORD = process\.env\.MASTER_ADMIN_PASSWORD \|\| '[^']*';/;
-const replacement = `const MASTER_ADMIN_PASSWORD = process.env.MASTER_ADMIN_PASSWORD || '${passwordToInject}';`;
-
-if (passwordPattern.test(mainJsContent)) {
-  mainJsContent = mainJsContent.replace(passwordPattern, replacement);
-  fs.writeFileSync(mainJsPath, mainJsContent, 'utf8');
-  console.log('✅ 환경 변수가 코드에 주입되었습니다.');
-  if (process.env.NODE_ENV === 'production') {
-    console.log('✅ 프로덕션 빌드: GitHub Secrets에서 비밀번호를 사용합니다.');
-  } else {
-    console.log('⚠️ 개발 환경: 기본 비밀번호를 사용합니다.');
-  }
+  console.log('⚠️ MASTER_ADMIN_PASSWORD 환경 변수가 설정되지 않아 기본값(' + DEFAULT_PASSWORD + ')을 인코딩합니다.');
 } else {
-  console.log('⚠️ MASTER_ADMIN_PASSWORD 패턴을 찾을 수 없습니다.');
+  console.log('✅ MASTER_ADMIN_PASSWORD Secret을 인코딩합니다.');
 }
 
+try {
+    // 2. Secret 값을 Base64로 인코딩합니다. (문자열 노출 방지)
+    const encodedPassword = Buffer.from(passwordToEncode, 'utf8').toString('base64');
+
+    // 3. 인코딩된 비밀번호를 별도의 파일로 저장합니다.
+    fs.writeFileSync(configFilePath, encodedPassword, 'utf8');
+
+    console.log('✅ config.bin 파일에 암호화된 비밀번호가 저장되었습니다.');
+} catch (error) {
+    console.error(`❌ config.bin 파일 생성 중 오류 발생: ${error.message}`);
+    process.exit(1);
+}
