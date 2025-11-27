@@ -25,7 +25,7 @@
   "build": {
     "appId": "com.alert.electron",
     "productName": "Alert Electron",
-    "publish": "never",
+    "publish": null,
     "directories": {
       "output": "dist"
     },
