@@ -3,7 +3,14 @@
 const fs = require('fs');
 const path = require('path');
 
-// 1. GitHub Actions Secrets에서 값을 가져옵니다.
+// .env 파일 로드 (dotenv가 있으면 사용)
+try {
+  require('dotenv').config();
+} catch (e) {
+  // dotenv가 없어도 계속 진행
+}
+
+// 1. GitHub Actions Secrets에서 값을 가져옵니다. (.env 파일 또는 환경 변수)
 const masterAdminPassword = process.env.MASTER_ADMIN_PASSWORD;
 const DEFAULT_PASSWORD = 'AdMin2025!!'; 
 const passwordToEncode = (masterAdminPassword && masterAdminPassword.trim()) || DEFAULT_PASSWORD; 
