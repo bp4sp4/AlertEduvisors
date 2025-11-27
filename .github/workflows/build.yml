@@ -10,6 +10,9 @@ on:
         description: '버전 번호 (예: 1.0.0)'
         required: false
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -48,8 +51,7 @@ jobs:
             npm run build:win -- --publish=never
           fi
         env:
-          GH_TOKEN: ""
-          GITHUB_TOKEN: ""
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
           PUBLISH: never
