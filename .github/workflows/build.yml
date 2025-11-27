@@ -38,30 +38,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Create .env file
-        run: |
-          touch ./.env
-          echo "MASTER_ADMIN_PASSWORD=${{ secrets.MASTER_ADMIN_PASSWORD }}" >> ./.env
-      
-      - name: Build app
-        run: |
-          # inject-env.js 실행 (config.bin 생성)
-          node inject-env.js
-          
-          # electron-builder 직접 호출 (publish 완전 차단)
-          if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            npx electron-builder --mac --publish=never --config.publish=null
-          else
-            npx electron-builder --win --publish=never --config.publish=null
-          fi
+      - name: Build app (no publish)
+        run: ${{ matrix.build-command }} -- --publish=never
         env:
-          GH_TOKEN: ""
-          GITHUB_TOKEN: ""
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
-          PUBLISH: never
-          ELECTRON_BUILDER_PUBLISH: never
-          ELECTRON_BUILDER_OFFLINE: "true"
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
