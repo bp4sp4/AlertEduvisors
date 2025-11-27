@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '버전 번호 (예: 1.1.0)'
+        description: '버전 번호 (예: 1.0.0)'
         required: false
 
 jobs:
@@ -35,101 +35,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Check environment variables
-        shell: bash
-        run: |
-          if [ -z "${{ secrets.MASTER_ADMIN_PASSWORD }}" ]; then
-            echo "⚠️ MASTER_ADMIN_PASSWORD가 설정되지 않았습니다. 기본값을 사용합니다."
-          else
-            echo "✅ MASTER_ADMIN_PASSWORD가 설정되었습니다."
-          fi
-      
-      # 1. config.bin 파일 생성 단계 (기존 로직 유지)
-      - name: Generate config.bin
-        shell: bash
-        run: node inject-env.js
-        env:
-          MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
-      
-      - name: Verify config.bin
-        shell: bash
-        run: |
-          if [ -f "config.bin" ]; then
-            echo "✅ config.bin 파일이 생성되었습니다."
-            # 파일 크기 확인 (플랫폼별로 다른 명령어 사용)
-            if command -v stat >/dev/null 2>&1; then
-              if stat -c%s config.bin >/dev/null 2>&1; then
-                echo "파일 크기: $(stat -c%s config.bin) bytes"
-              elif stat -f%z config.bin >/dev/null 2>&1; then
-                echo "파일 크기: $(stat -f%z config.bin) bytes"
-              else
-                echo "파일 확인됨"
-              fi
-            else
-              echo "파일 확인됨"
-            fi
-          else
-            echo "❌ config.bin 파일이 생성되지 않았습니다!"
-            exit 1
-          fi
-
-
-
-      # 2. 빌드 및 게시 차단 강화 단계 (PublishManager 오류 해결을 위한 수정)
       - name: Build app
-        shell: bash
-        run: |
-          # 🚨 게시 관련 환경 변수 완전 차단 및 토큰 비우기 (오류 해결 핵심)
-          unset GH_TOKEN GITHUB_TOKEN 2>/dev/null || true
-          export GH_TOKEN=""
-          export GITHUB_TOKEN=""
-          export PUBLISH="never"                   # 'null' 대신 'never' 명시
-          export ELECTRON_BUILDER_PUBLISH="never"  # 'null' 대신 'never' 명시
-          
-          # electron-builder 네트워크 요청 완전 차단
-          export ELECTRON_BUILDER_CACHE=""
-          export ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=false
-          export ELECTRON_GET_USE_PROXY=false
-          export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-          export ELECTRON_BUILDER_OFFLINE=true
-          export NO_INSTALL=1
-          
-          # 🔍 빌드 전 파일 최종 확인 (디버깅)
-          echo "📦 빌드 전 파일 확인:"
-          ls -la config.bin || { echo "⚠️ config.bin 파일을 찾을 수 없습니다"; exit 1; }
-          
-          echo "🔨 빌드 시작..."
-          echo "현재 디렉토리: $(pwd)"
-
-          # 플랫폼별 electron-builder 직접 호출
-          if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            echo "macOS 빌드 실행 중..."
-            # --publish=never를 사용하여 게시 완벽 차단
-            if npm electron-builder --mac --publish=never; then
-              echo "✅ macOS 빌드 성공"
-            else
-              echo "❌ macOS 빌드 실패"
-              exit 1
-            fi
-          else
-            echo "Windows 빌드 실행 중..."
-            # --publish=never를 사용하여 게시 완벽 차단
-            if npm electron-builder --win --publish=never; then
-              echo "✅ Windows 빌드 성공"
-            else
-              BUILD_EXIT_CODE=$?
-              echo "❌ Windows 빌드 실패 (exit code: $BUILD_EXIT_CODE)"
-              echo "오류 상세 정보를 확인하세요."
-              exit $BUILD_EXIT_CODE
-            fi
-          fi
-          echo "✅ 빌드 완료"
+        run: ${{ matrix.build-command }}
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # 이 단계에서는 config.bin이 필요하므로, MASTER_ADMIN_PASSWORD는 불필요함
-          # PUBLISH 관련 환경 변수는 run: 블록 상단에서 설정했으므로 중복 제거
-          ELECTRON_BUILDER_OFFLINE: "true"
-          CI: "true"
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
