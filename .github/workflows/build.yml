@@ -18,45 +18,55 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
-        include:
-          - os: macos-latest
-            build-command: npm run build:mac
-          - os: windows-latest
-            build-command: npm run build:win
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Create .env file
+
+      - name: Create .env (mac / linux)
+        if: matrix.os == 'macos-latest'
         run: |
           touch ./.env
           echo "MASTER_ADMIN_PASSWORD=${{ secrets.MASTER_ADMIN_PASSWORD }}" >> ./.env
-      
-      - name: Build app
+
+      - name: Create .env (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            npm run build:mac -- --publish=never
-          else
-            npm run build:win -- --publish=never
-          fi
+          New-Item -Path .\.env -ItemType File -Force | Out-Null
+          Add-Content -Path .\.env -Value "MASTER_ADMIN_PASSWORD=${{ secrets.MASTER_ADMIN_PASSWORD }}"
+
+      - name: Build on mac
+        if: matrix.os == 'macos-latest'
+        run: npm run build:mac -- --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
           MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
           PUBLISH: never
           ELECTRON_BUILDER_PUBLISH: never
-      
+
+      - name: Build on windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: npm run build:win -- --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          MASTER_ADMIN_PASSWORD: ${{ secrets.MASTER_ADMIN_PASSWORD }}
+          PUBLISH: never
+          ELECTRON_BUILDER_PUBLISH: never
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
